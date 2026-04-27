@@ -1,10 +1,16 @@
+import React from 'react';
+import Navbar from './components/Navbar';
+import Dashboard from './pages/Dashboard';
+
 function App() {
   return (
     <div>
-      <h1>Supply Chain Time Cycle & Bottleneck Analyzer</h1>
-      <p>Welcome to the frontend application.</p>
+      <Navbar />
+      <main>
+        <Dashboard />
+      </main>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
