@@ -1,5 +1,6 @@
 // filepath: src/components/Navbar.jsx
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 function Navbar() {
   return (
@@ -8,10 +9,10 @@ function Navbar() {
         <h2>Supply Chain Analyzer</h2>
       </div>
       <ul style={styles.navLinks}>
-        <li><a href="#" style={styles.link}>Dashboard</a></li>
-        <li><a href="#" style={styles.link}>Time Cycle</a></li>
-        <li><a href="#" style={styles.link}>Bottlenecks</a></li>
-        <li><a href="#" style={styles.link}>Reports</a></li>
+        <li><Link to="/" style={styles.link}>Dashboard</Link></li>
+        <li><Link to="/time-cycle" style={styles.link}>Time Cycle</Link></li>
+        <li><Link to="/bottlenecks" style={styles.link}>Bottlenecks</Link></li>
+        <li><Link to="/reports" style={styles.link}>Reports</Link></li>
       </ul>
     </nav>
   );
