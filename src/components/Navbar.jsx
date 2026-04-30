@@ -10,6 +10,7 @@ function Navbar() {
       </div>
       <ul style={styles.navLinks}>
         <li><Link to="/" style={styles.link}>Dashboard</Link></li>
+        <li><Link to="/orders" style={styles.link}>Orders</Link></li>
         <li><Link to="/time-cycle" style={styles.link}>Time Cycle</Link></li>
         <li><Link to="/bottlenecks" style={styles.link}>Bottlenecks</Link></li>
         <li><Link to="/reports" style={styles.link}>Reports</Link></li>
