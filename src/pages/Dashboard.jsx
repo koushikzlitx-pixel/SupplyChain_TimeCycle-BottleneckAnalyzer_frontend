@@ -364,6 +364,152 @@ function SlaStatusBadge({ breached }) {
 }
 
 // ---------------------------------------------------------------------------
+// SLABreachTable — table showing breached orders
+// ---------------------------------------------------------------------------
+
+function SLABreachTable() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    getSLABreachAnalytics()
+      .then((result) => {
+        if (!cancelled) {
+          setData(result);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message || 'Failed to load SLA breach data.');
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [retryKey]);
+
+  const breachedOrders = data?.breachedOrders ?? [];
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h2 className="text-base font-semibold text-gray-800">SLA Breach Analysis</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Orders exceeding SLA thresholds</p>
+        </div>
+        {!loading && !error && breachedOrders.length > 0 && (
+          <span className="text-xs font-medium text-red-600 bg-red-50 px-3 py-1.5 rounded-full">
+            {breachedOrders.length} {breachedOrders.length === 1 ? 'breach' : 'breaches'}
+          </span>
+        )}
+      </div>
+
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-4 animate-pulse">
+          <div className="flex items-center gap-4 pb-3 border-b border-gray-100">
+            <div className="h-3 rounded-full bg-gray-100 w-24" />
+            <div className="h-3 rounded-full bg-gray-100 w-32" />
+            <div className="h-3 rounded-full bg-gray-100 w-20" />
+          </div>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4">
+              <div className="h-4 rounded-full bg-gray-50 w-24" />
+              <div className="h-4 rounded-full bg-gray-50 w-32" />
+              <div className="h-4 rounded-full bg-gray-50 w-20" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <div>
+            <p className="text-sm text-red-600 font-semibold">Failed to load SLA breach data</p>
+            <p className="text-xs text-gray-400 mt-1 max-w-xs">{error}</p>
+          </div>
+          <button
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="mt-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 active:bg-red-800 px-4 py-2 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && breachedOrders.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
+            <span className="text-3xl">✅</span>
+          </div>
+          <div>
+            <p className="text-sm text-gray-700 font-semibold">No SLA breaches</p>
+            <p className="text-xs text-gray-400 mt-1">All orders are within SLA compliance!</p>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      {!loading && !error && breachedOrders.length > 0 && (
+        <div className="overflow-x-auto -mx-6 px-6">
+          <table className="w-full text-sm min-w-[480px]">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="pb-3 pr-6 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">
+                  Order ID
+                </th>
+                <th className="pb-3 pr-6 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">
+                  Breached Stage
+                </th>
+                <th className="pb-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-widest">
+                  Total Time
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {breachedOrders.map((order) => (
+                <tr
+                  key={order.id}
+                  className="hover:bg-red-50/40 transition-colors"
+                >
+                  <td className="py-4 pr-6 font-semibold text-gray-900">
+                    {order.id}
+                  </td>
+                  <td className="py-4 pr-6 text-gray-600">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 text-red-700 text-xs font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                      {order.stage}
+                    </span>
+                  </td>
+                  <td className="py-4 text-gray-900 font-medium tabular-nums">
+                    {order.totalTime} days
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Dashboard
 // ---------------------------------------------------------------------------
 
@@ -399,6 +545,12 @@ export default function Dashboard() {
     };
   }, [retryKey]);
 
+  // Calculate SLA breach percentage
+  const slaTotal = (summary?.slaOnTime ?? 0) + (summary?.slaBreaches ?? 0);
+  const slaBreachPct = slaTotal > 0 
+    ? ((summary?.slaBreaches ?? 0) / slaTotal * 100).toFixed(1)
+    : '0.0';
+
   // Summary cards configuration
   const cards = [
     {
@@ -409,41 +561,43 @@ export default function Dashboard() {
       accentClass: 'border-blue-500',
     },
     {
-      title: 'Average Total Time',
+      title: 'Avg Total Delivery Time',
       value:
         summary?.avgTotalTime != null
           ? `${Number(summary.avgTotalTime).toFixed(1)} days`
           : null,
-      subtitle: 'Mean end-to-end cycle time',
-      icon: '⏱️',
+      subtitle: 'End-to-end cycle time',
+      icon: '🚚',
       accentClass: 'border-emerald-500',
     },
     {
-      title: 'SLA Breaches',
-      value: summary?.slaBreaches != null ? summary.slaBreaches.toLocaleString() : null,
-      subtitle:
-        summary?.totalOrders > 0
-          ? `${Math.round((summary.slaBreaches / summary.totalOrders) * 100)}% of total orders`
-          : 'Orders exceeding SLA threshold',
+      title: 'SLA Breach Percentage',
+      value: summary ? `${slaBreachPct}%` : null,
+      subtitle: `${summary?.slaBreaches ?? 0} of ${slaTotal} orders`,
       icon: '⚠️',
-      accentClass: 'border-amber-500',
+      accentClass: 'border-red-500',
     },
     {
-      title: 'Most Common Bottleneck',
-      value: summary?.mostCommonBottleneck || null,
-      subtitle:
-        summary?.bottleneckCount != null
-          ? `${summary.bottleneckCount.toLocaleString()} occurrences`
-          : 'Highest-frequency delay stage',
-      icon: '🔍',
-      accentClass: 'border-rose-500',
+      title: 'Avg Procurement Time',
+      value:
+        summary?.avgProcurementTime != null
+          ? `${Number(summary.avgProcurementTime).toFixed(1)} days`
+          : null,
+      subtitle: 'Time from order to sourcing',
+      icon: '📋',
+      accentClass: 'border-purple-500',
+    },
+    {
+      title: 'Avg Processing Time',
+      value:
+        summary?.avgProcessingTime != null
+          ? `${Number(summary.avgProcessingTime).toFixed(1)} days`
+          : null,
+      subtitle: 'Internal processing duration',
+      icon: '⚙️',
+      accentClass: 'border-amber-500',
     },
   ];
-
-  const recentOrders = summary?.recentOrders ?? [];
-  const slaTotal = (summary?.slaOnTime ?? 0) + (summary?.slaBreaches ?? 0);
-  const slaCompliancePct =
-    slaTotal > 0 ? Math.round(((summary?.slaOnTime ?? 0) / slaTotal) * 100) : 0;
 
   const lastUpdated = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -471,9 +625,9 @@ export default function Dashboard() {
         )}
 
         {/* ── Summary Cards (KPIBox) ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-8">
           {loading
-            ? Array.from({ length: 4 }).map((_, i) => (
+            ? Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
                   className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-3 animate-pulse"
@@ -497,115 +651,18 @@ export default function Dashboard() {
         {loading ? (
           <LoadingSpinner />
         ) : !error ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-6">
 
             {/* Bottleneck Chart */}
-            <div className="lg:col-span-2">
-              <BottleneckChart />
-            </div>
-
-            {/* SLA Status Panel */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-base font-semibold text-gray-800 mb-5">SLA Status</h2>
-              {summary ? (
-                <div className="space-y-5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">On Time</span>
-                    <span className="text-sm font-bold text-emerald-600">
-                      {(summary.slaOnTime ?? 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Breached</span>
-                    <span className="text-sm font-bold text-red-500">
-                      {(summary.slaBreaches ?? 0).toLocaleString()}
-                    </span>
-                  </div>
-
-                  {slaTotal > 0 && (
-                    <>
-                      <div className="w-full bg-red-100 rounded-full h-3 overflow-hidden">
-                        <div
-                          className="bg-emerald-500 h-3 rounded-full transition-all duration-700"
-                          style={{ width: `${slaCompliancePct}%` }}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-gray-400">
-                        <span>Compliance rate</span>
-                        <span className="font-semibold text-gray-600">
-                          {slaCompliancePct}%
-                        </span>
-                      </div>
-                    </>
-                  )}
-
-                  <div className="pt-2 border-t border-gray-50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-500">Total evaluated</span>
-                      <span className="text-sm font-semibold text-gray-700">
-                        {slaTotal.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-gray-300 text-sm text-center py-10">
-                  No SLA data available.
-                </p>
-              )}
-            </div>
-
-            {/* Recent Orders Table */}
-            <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-semibold text-gray-800">Recent Orders</h2>
-                {recentOrders.length > 0 && (
-                  <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
-                    {recentOrders.length} entries
-                  </span>
-                )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="lg:col-span-2">
+                <BottleneckChart />
               </div>
-              {recentOrders.length > 0 ? (
-                <div className="overflow-x-auto -mx-6 px-6">
-                  <table className="w-full text-sm text-left min-w-[520px]">
-                    <thead>
-                      <tr className="border-b border-gray-100">
-                        {['Order ID', 'Stage', 'Total Time', 'SLA Status'].map((h) => (
-                          <th
-                            key={h}
-                            className="pb-3 pr-6 text-xs font-semibold text-gray-400 uppercase tracking-widest"
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {recentOrders.map((order) => (
-                        <tr
-                          key={order.id}
-                          className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="py-3.5 pr-6 font-medium text-gray-800">
-                            {order.id}
-                          </td>
-                          <td className="py-3.5 pr-6 text-gray-500">{order.stage}</td>
-                          <td className="py-3.5 pr-6 text-gray-500 tabular-nums">
-                            {order.totalTime} days
-                          </td>
-                          <td className="py-3.5">
-                            <SlaStatusBadge breached={order.slaBreached} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-gray-300 text-sm text-center py-10">
-                  No recent orders to display.
-                </p>
-              )}
+            </div>
+
+            {/* SLA Breach Table */}
+            <div className="grid grid-cols-1">
+              <SLABreachTable />
             </div>
 
           </div>
