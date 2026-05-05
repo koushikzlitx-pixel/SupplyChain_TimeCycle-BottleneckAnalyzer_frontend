@@ -84,6 +84,21 @@ export async function getSLABreachAnalytics() {
   }
 }
 
+/**
+ * Export analytics data as CSV.
+ * Returns the export response from the backend.
+ */
+export async function exportAnalyticsCSV() {
+  try {
+    const response = await apiClient.get('/api/analytics/export', {
+      responseType: 'blob', // Handle CSV file download
+    });
+    return response;
+  } catch (err) {
+    normaliseError(err);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // KPIBox — reusable analytics card
 // ---------------------------------------------------------------------------
@@ -174,6 +189,93 @@ function ErrorBanner({ message, onRetry }) {
       >
         Retry
       </button>
+    </div>
+  );
+}
+
+function ExportButton() {
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState({ type: null, message: '' });
+
+  const handleExport = async () => {
+    try {
+      setLoading(true);
+      setFeedback({ type: null, message: '' });
+
+      const response = await exportAnalyticsCSV();
+      
+      // Create download link for CSV file
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `analytics-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setFeedback({ type: 'success', message: 'Export successful!' });
+      setTimeout(() => setFeedback({ type: null, message: '' }), 3000);
+    } catch (err) {
+      setFeedback({ 
+        type: 'error', 
+        message: err.message || 'Failed to export analytics data.' 
+      });
+      setTimeout(() => setFeedback({ type: null, message: '' }), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <button
+        onClick={handleExport}
+        disabled={loading}
+        className={`
+          group relative flex items-center justify-center gap-2.5 
+          px-5 py-2.5 rounded-xl font-semibold text-sm
+          transition-all duration-200 ease-in-out
+          ${loading 
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+            : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm hover:shadow-md active:scale-95'
+          }
+        `}
+      >
+        {loading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+            <span>Exporting...</span>
+          </>
+        ) : (
+          <>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Export CSV</span>
+          </>
+        )}
+      </button>
+
+      {/* Feedback message */}
+      {feedback.type && (
+        <div 
+          className={`
+            flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
+            animate-in fade-in slide-in-from-right-2 duration-200
+            ${feedback.type === 'success' 
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+              : 'bg-red-50 text-red-700 border border-red-200'
+            }
+          `}
+        >
+          <span className="text-sm">
+            {feedback.type === 'success' ? '✓' : '✕'}
+          </span>
+          <span>{feedback.message}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -610,13 +712,18 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── Page Header ── */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-            Analytics Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-gray-400">
-            Supply chain performance overview · Last updated: {lastUpdated}
-          </p>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+              Analytics Dashboard
+            </h1>
+            <p className="mt-1 text-sm text-gray-400">
+              Supply chain performance overview · Last updated: {lastUpdated}
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <ExportButton />
+          </div>
         </div>
 
         {/* ── Error Banner ── */}
