@@ -99,6 +99,19 @@ export async function exportAnalyticsCSV() {
   }
 }
 
+/**
+ * Generate dummy data for testing and development.
+ * Returns the response from the backend.
+ */
+export async function generateDummyData() {
+  try {
+    const { data } = await apiClient.post('/api/analytics/generate-dummy-data');
+    return data;
+  } catch (err) {
+    normaliseError(err);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // KPIBox — reusable analytics card
 // ---------------------------------------------------------------------------
@@ -254,6 +267,89 @@ function ExportButton() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span>Export CSV</span>
+          </>
+        )}
+      </button>
+
+      {/* Feedback message */}
+      {feedback.type && (
+        <div 
+          className={`
+            flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium
+            animate-in fade-in slide-in-from-right-2 duration-200
+            ${feedback.type === 'success' 
+              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+              : 'bg-red-50 text-red-700 border border-red-200'
+            }
+          `}
+        >
+          <span className="text-sm">
+            {feedback.type === 'success' ? '✓' : '✕'}
+          </span>
+          <span>{feedback.message}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GenerateDataButton() {
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState({ type: null, message: '' });
+
+  const handleGenerate = async () => {
+    try {
+      setLoading(true);
+      setFeedback({ type: null, message: '' });
+
+      const result = await generateDummyData();
+
+      setFeedback({ 
+        type: 'success', 
+        message: `Generated ${result.generated || 'dummy'} data successfully!` 
+      });
+      setTimeout(() => {
+        setFeedback({ type: null, message: '' });
+        // Reload page to show new data
+        window.location.reload();
+      }, 2000);
+    } catch (err) {
+      setFeedback({ 
+        type: 'error', 
+        message: err.message || 'Failed to generate dummy data.' 
+      });
+      setTimeout(() => setFeedback({ type: null, message: '' }), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      <button
+        onClick={handleGenerate}
+        disabled={loading}
+        className={`
+          group relative flex items-center justify-center gap-2.5 
+          px-5 py-2.5 rounded-xl font-semibold text-sm
+          transition-all duration-200 ease-in-out
+          ${loading 
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+            : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-sm hover:shadow-md active:scale-95'
+          }
+        `}
+      >
+        {loading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin" />
+            <span>Generating...</span>
+          </>
+        ) : (
+          <>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <span>Generate Dummy Data</span>
           </>
         )}
       </button>
@@ -721,7 +817,8 @@ export default function Dashboard() {
               Supply chain performance overview · Last updated: {lastUpdated}
             </p>
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 flex flex-col sm:flex-row gap-3">
+            <GenerateDataButton />
             <ExportButton />
           </div>
         </div>
