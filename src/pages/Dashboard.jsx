@@ -4,11 +4,16 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Cell,
+  Legend,
 } from 'recharts';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -146,6 +151,74 @@ function KPIBox({ title, value, subtitle }) {
       {subtitle && (
         <p className="text-xs text-gray-400 leading-relaxed mt-0.5">{subtitle}</p>
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ChartCard — reusable container for dashboard charts
+// ---------------------------------------------------------------------------
+
+function ChartCard({ title, children }) {
+  return (
+    <div
+      className="
+        bg-white
+        rounded-2xl
+        border border-gray-100
+        shadow-sm
+        hover:shadow-md
+        transition-shadow duration-200 ease-in-out
+        p-6
+        flex flex-col
+        w-full
+        h-full
+      "
+    >
+      {/* Chart Title */}
+      {title && (
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 tracking-tight">
+          {title}
+        </h3>
+      )}
+
+      {/* Chart Content */}
+      <div className="flex-1 min-h-0">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DashboardHeader — reusable header with title and action buttons
+// ---------------------------------------------------------------------------
+
+function DashboardHeader({ title, subtitle }) {
+  const defaultTitle = 'Analytics Dashboard';
+  const defaultSubtitle = `Supply chain performance overview · Last updated: ${new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })}`;
+
+  return (
+    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+      {/* Title Section */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          {title || defaultTitle}
+        </h1>
+        <p className="mt-1 text-sm text-gray-400">
+          {subtitle || defaultSubtitle}
+        </p>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex-shrink-0 flex flex-col sm:flex-row gap-3">
+        <GenerateDataButton />
+        <ExportButton />
+      </div>
     </div>
   );
 }
@@ -398,6 +471,757 @@ function OrderTimeline({ stages = [] }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function StageDelayChart() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    // Fetch stage delay analytics from backend
+    apiClient
+      .get('/api/analytics/stage-delays')
+      .then(({ data: responseData }) => {
+        if (!cancelled) {
+          // Transform data to format expected by Recharts
+          const chartData = [
+            { stage: 'Procurement', avgDelay: responseData.procurement_avg_delay || 0 },
+            { stage: 'Processing', avgDelay: responseData.processing_avg_delay || 0 },
+            { stage: 'Dispatch', avgDelay: responseData.dispatch_avg_delay || 0 },
+            { stage: 'Delivery', avgDelay: responseData.delivery_avg_delay || 0 },
+          ];
+          setData(chartData);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          try { normaliseError(err); }
+          catch (e) {
+            setError(e.message);
+          }
+          setLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [retryKey]);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-base font-semibold text-gray-800">Stage Delay Analysis</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Average delay times across stages</p>
+        </div>
+        {!loading && !error && data.length > 0 && (
+          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
+            4 stages
+          </span>
+        )}
+      </div>
+
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-4 animate-pulse">
+          <div className="h-64 bg-gray-50 rounded-xl" />
+          <div className="flex justify-center gap-4">
+            <div className="h-3 w-24 bg-gray-100 rounded-full" />
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <div>
+            <p className="text-sm text-red-600 font-semibold">Failed to load delay data</p>
+            <p className="text-xs text-gray-400 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="mt-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && data.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <span className="text-4xl opacity-20">📊</span>
+          <p className="text-sm text-gray-300 font-medium">No delay data available</p>
+          <p className="text-xs text-gray-300">Data will appear once delays are recorded.</p>
+        </div>
+      )}
+
+      {/* Bar chart */}
+      {!loading && !error && data.length > 0 && (
+        <>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart
+              data={data}
+              margin={{ top: 10, right: 20, left: 0, bottom: 70 }}
+              barCategoryGap="25%"
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <XAxis
+                dataKey="stage"
+                tick={{ fontSize: 12, fill: '#64748b' }}
+                tickLine={false}
+                axisLine={false}
+                angle={-35}
+                textAnchor="end"
+                height={80}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 12, fill: '#64748b' }}
+                tickLine={false}
+                axisLine={false}
+                width={50}
+                label={{ 
+                  value: 'Avg Delay (days)', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  style: { fontSize: 12, fill: '#64748b' }
+                }}
+              />
+              <Tooltip
+                cursor={{ fill: '#f8fafc' }}
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                }}
+                labelStyle={{ 
+                  fontWeight: 600, 
+                  color: '#1e293b',
+                  marginBottom: '4px',
+                }}
+                itemStyle={{ 
+                  color: '#3b82f6',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+                formatter={(value) => [`${Number(value).toFixed(2)} days`, 'Avg Delay']}
+              />
+              <Bar 
+                dataKey="avgDelay" 
+                fill="#3b82f6"
+                radius={[8, 8, 0, 0]}
+                maxBarSize={80}
+              >
+                {data.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7'][index % 4]}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+
+          {/* Legend */}
+          <div className="flex items-center justify-center gap-6 mt-6 pt-4 border-t border-gray-100">
+            {data.map((item, idx) => (
+              <div key={item.stage} className="flex items-center gap-2">
+                <div 
+                  className="w-3 h-3 rounded-sm"
+                  style={{ backgroundColor: ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7'][idx % 4] }}
+                />
+                <span className="text-xs text-gray-600 font-medium">{item.stage}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SLABreachPieChart() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    getSLABreachAnalytics()
+      .then((result) => {
+        if (!cancelled) {
+          setData(result);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message || 'Failed to load SLA breach data.');
+          setLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [retryKey]);
+
+  // Transform data for pie chart
+  const chartData = data ? [
+    { name: 'On Time', value: data.onTime || 0, color: '#10b981' },
+    { name: 'Breached', value: data.breached || 0, color: '#ef4444' },
+  ] : [];
+
+  const total = (data?.onTime || 0) + (data?.breached || 0);
+  const complianceRate = data?.complianceRate || 0;
+
+  // Custom label renderer with percentage
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+
+    if (percent < 0.05) return null; // Don't show label if less than 5%
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        className="font-bold text-sm"
+      >
+        {`${(percent * 100).toFixed(1)}%`}
+      </text>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-base font-semibold text-gray-800">SLA Compliance Overview</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Breached vs Non-Breached Orders</p>
+        </div>
+        {!loading && !error && total > 0 && (
+          <div className="text-right">
+            <div className="text-2xl font-bold text-emerald-600">
+              {complianceRate.toFixed(1)}%
+            </div>
+            <p className="text-xs text-gray-400">Compliance</p>
+          </div>
+        )}
+      </div>
+
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-4 animate-pulse">
+          <div className="h-64 bg-gray-50 rounded-xl flex items-center justify-center">
+            <div className="w-48 h-48 rounded-full bg-gray-100" />
+          </div>
+          <div className="flex justify-center gap-4">
+            <div className="h-3 w-24 bg-gray-100 rounded-full" />
+            <div className="h-3 w-24 bg-gray-100 rounded-full" />
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <div>
+            <p className="text-sm text-red-600 font-semibold">Failed to load SLA data</p>
+            <p className="text-xs text-gray-400 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="mt-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && total === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <span className="text-4xl opacity-20">📊</span>
+          <p className="text-sm text-gray-300 font-medium">No SLA data available</p>
+          <p className="text-xs text-gray-300">Data will appear once orders are evaluated.</p>
+        </div>
+      )}
+
+      {/* Pie chart */}
+      {!loading && !error && total > 0 && (
+        <>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={renderCustomLabel}
+                outerRadius={100}
+                innerRadius={60}
+                paddingAngle={2}
+                dataKey="value"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                }}
+                itemStyle={{ 
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+                formatter={(value, name) => [
+                  `${value.toLocaleString()} orders (${((value / total) * 100).toFixed(1)}%)`,
+                  name
+                ]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+
+          {/* Stats cards */}
+          <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-gray-100">
+            <div className="text-center p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                <span className="text-xs font-semibold text-emerald-700 uppercase">On Time</span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-900 tabular-nums">
+                {(data.onTime || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-emerald-600 mt-1">
+                {total > 0 ? `${((data.onTime / total) * 100).toFixed(1)}%` : '0%'} of total
+              </p>
+            </div>
+
+            <div className="text-center p-4 rounded-xl bg-red-50 border border-red-100">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="w-3 h-3 rounded-full bg-red-500" />
+                <span className="text-xs font-semibold text-red-700 uppercase">Breached</span>
+              </div>
+              <p className="text-2xl font-bold text-red-900 tabular-nums">
+                {(data.breached || 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-red-600 mt-1">
+                {total > 0 ? `${((data.breached / total) * 100).toFixed(1)}%` : '0%'} of total
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function OrderTrendChart() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    // Fetch order trend data from backend
+    apiClient
+      .get('/api/analytics/order-trends')
+      .then(({ data: responseData }) => {
+        if (!cancelled) {
+          // Expected format: [{ date: '2024-01-01', orders: 10 }, ...]
+          const chartData = Array.isArray(responseData) ? responseData : (responseData.trends || []);
+          setData(chartData);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          try { normaliseError(err); }
+          catch (e) {
+            setError(e.message);
+          }
+          setLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [retryKey]);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-base font-semibold text-gray-800">Order Trends Over Time</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Daily order creation trends</p>
+        </div>
+        {!loading && !error && data.length > 0 && (
+          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
+            {data.length} data points
+          </span>
+        )}
+      </div>
+
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-4 animate-pulse">
+          <div className="h-64 bg-gray-50 rounded-xl" />
+          <div className="flex justify-center gap-4">
+            <div className="h-3 w-32 bg-gray-100 rounded-full" />
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <div>
+            <p className="text-sm text-red-600 font-semibold">Failed to load trend data</p>
+            <p className="text-xs text-gray-400 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="mt-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && data.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <span className="text-4xl opacity-20">📈</span>
+          <p className="text-sm text-gray-300 font-medium">No trend data available</p>
+          <p className="text-xs text-gray-300">Data will appear once orders are created over time.</p>
+        </div>
+      )}
+
+      {/* Line chart */}
+      {!loading && !error && data.length > 0 && (
+        <>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart
+              data={data}
+              margin={{ top: 10, right: 20, left: 0, bottom: 30 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: '#64748b' }}
+                tickLine={false}
+                axisLine={false}
+                angle={-35}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 11, fill: '#64748b' }}
+                tickLine={false}
+                axisLine={false}
+                width={45}
+                label={{ 
+                  value: 'Orders', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  style: { fontSize: 11, fill: '#64748b' }
+                }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                }}
+                labelStyle={{ 
+                  fontWeight: 600, 
+                  color: '#1e293b',
+                  marginBottom: '4px',
+                  fontSize: '12px',
+                }}
+                itemStyle={{ 
+                  color: '#3b82f6',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+                formatter={(value) => [`${value} orders`, 'Created']}
+              />
+              <Legend
+                wrapperStyle={{ 
+                  paddingTop: '20px',
+                  fontSize: '12px',
+                }}
+                iconType="line"
+              />
+              <Line
+                type="monotone"
+                dataKey="orders"
+                stroke="#3b82f6"
+                strokeWidth={3}
+                dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: '#2563eb' }}
+                name="Orders Created"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+
+          {/* Summary stats */}
+          <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-gray-100">
+            <div className="text-center">
+              <p className="text-xs text-gray-500 mb-1">Total Orders</p>
+              <p className="text-lg font-bold text-gray-900 tabular-nums">
+                {data.reduce((sum, item) => sum + (item.orders || 0), 0).toLocaleString()}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500 mb-1">Avg per Day</p>
+              <p className="text-lg font-bold text-gray-900 tabular-nums">
+                {(data.reduce((sum, item) => sum + (item.orders || 0), 0) / data.length).toFixed(1)}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500 mb-1">Peak Day</p>
+              <p className="text-lg font-bold text-gray-900 tabular-nums">
+                {Math.max(...data.map(item => item.orders || 0))}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function BottleneckDistributionChart() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    getBottleneckAnalytics()
+      .then((list) => {
+        if (!cancelled) {
+          // Transform data for pie chart with colors
+          const chartData = list.map((item, idx) => ({
+            name: item.stage,
+            value: item.count,
+            color: ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7'][idx % 4],
+          }));
+          setData(chartData);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message || 'Failed to load bottleneck data.');
+          setLoading(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [retryKey]);
+
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  // Custom label renderer with percentage
+  const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+
+    if (percent < 0.05) return null; // Don't show label if less than 5%
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        className="font-bold text-xs"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-base font-semibold text-gray-800">Bottleneck Distribution</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Stage-wise bottleneck breakdown</p>
+        </div>
+        {!loading && !error && total > 0 && (
+          <span className="text-xs font-medium text-purple-700 bg-purple-50 px-3 py-1.5 rounded-full">
+            {total.toLocaleString()} total
+          </span>
+        )}
+      </div>
+
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="space-y-4 animate-pulse">
+          <div className="h-64 bg-gray-50 rounded-xl flex items-center justify-center">
+            <div className="w-48 h-48 rounded-full bg-gray-100" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="h-16 bg-gray-50 rounded-xl" />
+            <div className="h-16 bg-gray-50 rounded-xl" />
+            <div className="h-16 bg-gray-50 rounded-xl" />
+            <div className="h-16 bg-gray-50 rounded-xl" />
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+            <span className="text-2xl">⚠️</span>
+          </div>
+          <div>
+            <p className="text-sm text-red-600 font-semibold">Failed to load bottleneck data</p>
+            <p className="text-xs text-gray-400 mt-1">{error}</p>
+          </div>
+          <button
+            onClick={() => setRetryKey((k) => k + 1)}
+            className="mt-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && data.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <span className="text-4xl opacity-20">📊</span>
+          <p className="text-sm text-gray-300 font-medium">No bottleneck data available</p>
+          <p className="text-xs text-gray-300">Data will appear once bottlenecks are detected.</p>
+        </div>
+      )}
+
+      {/* Doughnut chart */}
+      {!loading && !error && data.length > 0 && (
+        <>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={renderCustomLabel}
+                outerRadius={100}
+                innerRadius={65}
+                paddingAngle={3}
+                dataKey="value"
+              >
+                {data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                }}
+                itemStyle={{ 
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+                formatter={(value, name) => [
+                  `${value.toLocaleString()} orders (${((value / total) * 100).toFixed(1)}%)`,
+                  name
+                ]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+
+          {/* Stage cards */}
+          <div className="grid grid-cols-2 gap-3 mt-6 pt-4 border-t border-gray-100">
+            {data.map((item, idx) => (
+              <div 
+                key={item.name}
+                className="p-3 rounded-xl border-2 transition-all hover:shadow-md"
+                style={{ 
+                  backgroundColor: `${item.color}10`,
+                  borderColor: `${item.color}40`,
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div 
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="text-xs font-semibold text-gray-700 uppercase">
+                    {item.name}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-2xl font-bold text-gray-900 tabular-nums">
+                    {item.value.toLocaleString()}
+                  </p>
+                  <p className="text-xs font-medium" style={{ color: item.color }}>
+                    {total > 0 ? `${((item.value / total) * 100).toFixed(1)}%` : '0%'}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1053,14 +1877,32 @@ export default function Dashboard() {
         ) : !error ? (
           <div className="space-y-6">
 
-            {/* Bottleneck Chart */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Row - Trend and SLA Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <BottleneckChart />
+                <OrderTrendChart />
+              </div>
+              <div className="lg:col-span-1">
+                <SLABreachPieChart />
               </div>
             </div>
 
-            {/* SLA Breach Table */}
+            {/* Second Row - Stage Delays and Bottleneck Distribution */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <StageDelayChart />
+              </div>
+              <div>
+                <BottleneckDistributionChart />
+              </div>
+            </div>
+
+            {/* Third Row - Detailed Bottleneck Chart */}
+            <div className="grid grid-cols-1">
+              <BottleneckChart />
+            </div>
+
+            {/* Bottom Row - SLA Breach Table */}
             <div className="grid grid-cols-1">
               <SLABreachTable />
             </div>
