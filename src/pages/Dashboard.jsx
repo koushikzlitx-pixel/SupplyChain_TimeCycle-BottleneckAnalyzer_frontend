@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import axios from 'axios';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   ResponsiveContainer,
   BarChart,
@@ -17,6 +18,317 @@ import {
 } from 'recharts';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+// ---------------------------------------------------------------------------
+// Theme Context — Dark Mode Support
+// ---------------------------------------------------------------------------
+
+const ThemeContext = createContext();
+
+export function ThemeProvider({ children }) {
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved || 'light';
+  });
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => {
+      const newTheme = prev === 'light' ? 'dark' : 'light';
+      localStorage.setItem('theme', newTheme);
+      return newTheme;
+    });
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+export function useTheme() {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar Component — Navigation Sidebar
+// ---------------------------------------------------------------------------
+
+export function Sidebar({ isOpen, onClose }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { theme } = useTheme();
+
+  const navItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: '📊' },
+    { path: '/orders', label: 'Orders', icon: '📦' },
+    { path: '/analytics', label: 'Analytics', icon: '📈' },
+  ];
+
+  const isActive = (path) => location.pathname === path;
+
+  return (
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`
+          fixed lg:sticky top-0 left-0 h-screen z-50
+          w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
+          transform transition-transform duration-300 ease-in-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          flex flex-col
+        `}
+      >
+        {/* Logo */}
+        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-800">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            Supply Chain
+          </h2>
+          <button
+            onClick={onClose}
+            className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+          {navItems.map((item) => (
+            <button
+              key={item.path}
+              onClick={() => {
+                navigate(item.path);
+                onClose();
+              }}
+              className={`
+                w-full flex items-center gap-3 px-4 py-3 rounded-lg
+                text-sm font-medium transition-all duration-200
+                ${
+                  isActive(item.path)
+                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }
+              `}
+            >
+              <span className="text-xl">{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+          <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+            v1.0.0
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Navbar Component — Top Navigation Bar
+// ---------------------------------------------------------------------------
+
+export function Navbar({ onMenuClick }) {
+  const { theme, toggleTheme } = useTheme();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  return (
+    <header className="sticky top-0 z-30 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+      <div className="h-full flex items-center justify-between px-4 lg:px-6">
+        {/* Left: Menu + Title */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Analytics Dashboard
+          </h1>
+        </div>
+
+        {/* Center: Search (hidden on mobile) */}
+        <div className="hidden md:flex flex-1 max-w-md mx-8">
+          <div className="relative w-full">
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
+            />
+          </div>
+        </div>
+
+        {/* Right: Dark Mode Toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTheme}
+            className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reusable Components
+// ---------------------------------------------------------------------------
+
+// SortDropdown — Dropdown for sorting options
+export function SortDropdown({ value, onChange, options }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-white cursor-pointer transition-all"
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+// Pagination — Reusable pagination component
+export function Pagination({ currentPage, totalPages, onPageChange, totalItems, startIndex, endIndex }) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Showing <span className="font-semibold text-gray-700 dark:text-gray-300">{startIndex + 1}</span> to{' '}
+        <span className="font-semibold text-gray-700 dark:text-gray-300">{Math.min(endIndex, totalItems)}</span> of{' '}
+        <span className="font-semibold text-gray-700 dark:text-gray-300">{totalItems}</span> items
+      </p>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800 transition-colors"
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center gap-1">
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum;
+            if (totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (currentPage <= 3) {
+              pageNum = i + 1;
+            } else if (currentPage >= totalPages - 2) {
+              pageNum = totalPages - 4 + i;
+            } else {
+              pageNum = currentPage - 2 + i;
+            }
+
+            return (
+              <button
+                key={pageNum}
+                onClick={() => onPageChange(pageNum)}
+                className={`min-w-[2rem] h-8 px-2 text-xs font-medium rounded-lg transition-colors ${
+                  currentPage === pageNum
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-gray-800 transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// DashboardStatsGrid — Grid container for KPI cards
+export function DashboardStatsGrid({ children, loading, skeletonCount = 5 }) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-8">
+        {Array.from({ length: skeletonCount }).map((_, i) => (
+          <div
+            key={i}
+            className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 flex flex-col gap-3 animate-pulse"
+          >
+            <div className="h-3 w-24 bg-gray-100 dark:bg-gray-700 rounded-full" />
+            <div className="h-9 w-32 bg-gray-100 dark:bg-gray-700 rounded-lg" />
+            <div className="h-3 w-20 bg-gray-100 dark:bg-gray-700 rounded-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-8">
+      {children}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Analytics service — centralised API functions
@@ -126,9 +438,9 @@ function KPIBox({ title, value, subtitle }) {
     <div
       className="
         group
-        bg-white
+        bg-white dark:bg-gray-800
         rounded-2xl
-        border border-gray-100
+        border border-gray-100 dark:border-gray-700
         shadow-sm
         hover:shadow-md hover:-translate-y-0.5
         transition-all duration-200 ease-in-out
@@ -138,18 +450,18 @@ function KPIBox({ title, value, subtitle }) {
       "
     >
       {/* Title */}
-      <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest leading-none">
+      <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none">
         {title}
       </span>
 
       {/* Value */}
-      <p className="text-3xl font-bold text-gray-900 leading-tight mt-1 group-hover:text-blue-600 transition-colors duration-200">
-        {value != null && value !== '' ? value : <span className="text-gray-200">—</span>}
+      <p className="text-3xl font-bold text-gray-900 dark:text-white leading-tight mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
+        {value != null && value !== '' ? value : <span className="text-gray-200 dark:text-gray-600">—</span>}
       </p>
 
       {/* Subtitle */}
       {subtitle && (
-        <p className="text-xs text-gray-400 leading-relaxed mt-0.5">{subtitle}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 leading-relaxed mt-0.5">{subtitle}</p>
       )}
     </div>
   );
@@ -163,9 +475,9 @@ function ChartCard({ title, children }) {
   return (
     <div
       className="
-        bg-white
+        bg-white dark:bg-gray-800
         rounded-2xl
-        border border-gray-100
+        border border-gray-100 dark:border-gray-700
         shadow-sm
         hover:shadow-md
         transition-shadow duration-200 ease-in-out
@@ -177,7 +489,7 @@ function ChartCard({ title, children }) {
     >
       {/* Chart Title */}
       {title && (
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 tracking-tight">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">
           {title}
         </h3>
       )}
@@ -1824,24 +2136,11 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── Page Header ── */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              Analytics Dashboard
-            </h1>
-            <p className="mt-1 text-sm text-gray-400">
-              Supply chain performance overview · Last updated: {lastUpdated}
-            </p>
-          </div>
-          <div className="flex-shrink-0 flex flex-col sm:flex-row gap-3">
-            <GenerateDataButton />
-            <ExportButton />
-          </div>
-        </div>
+        <DashboardHeader />
 
         {/* ── Error Banner ── */}
         {error && !loading && (
@@ -1849,27 +2148,16 @@ export default function Dashboard() {
         )}
 
         {/* ── Summary Cards (KPIBox) ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-8">
-          {loading
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-3 animate-pulse"
-                >
-                  <div className="h-3 w-24 bg-gray-100 rounded-full" />
-                  <div className="h-9 w-32 bg-gray-100 rounded-lg" />
-                  <div className="h-3 w-20 bg-gray-100 rounded-full" />
-                </div>
-              ))
-            : cards.map((card) => (
-                <KPIBox
-                  key={card.title}
-                  title={card.title}
-                  value={card.value}
-                  subtitle={card.subtitle}
-                />
-              ))}
-        </div>
+        <DashboardStatsGrid loading={loading}>
+          {cards.map((card) => (
+            <KPIBox
+              key={card.title}
+              title={card.title}
+              value={card.value}
+              subtitle={card.subtitle}
+            />
+          ))}
+        </DashboardStatsGrid>
 
         {/* ── Main Content ── */}
         {loading ? (
@@ -1919,15 +2207,15 @@ export default function Dashboard() {
 // ---------------------------------------------------------------------------
 
 const ORDER_COLUMNS = [
-  { key: 'order_id',         label: 'Order ID',         width: 'w-32' },
-  { key: 'procurement_time', label: 'Procurement',      width: 'w-28' },
-  { key: 'processing_time',  label: 'Processing',       width: 'w-28' },
-  { key: 'total_time',       label: 'Total Time',       width: 'w-28' },
-  { key: 'sla_breach',       label: 'SLA Status',       width: 'w-32' },
-  { key: 'bottleneck_stage', label: 'Bottleneck Stage', width: 'w-40' },
+  { key: 'order_id',         label: 'Order ID',         width: 'w-32',  sortable: false },
+  { key: 'procurement_time', label: 'Procurement',      width: 'w-28',  sortable: true },
+  { key: 'processing_time',  label: 'Processing',       width: 'w-28',  sortable: true },
+  { key: 'total_time',       label: 'Total Time',       width: 'w-28',  sortable: true },
+  { key: 'sla_breach',       label: 'SLA Status',       width: 'w-32',  sortable: false },
+  { key: 'bottleneck_stage', label: 'Bottleneck Stage', width: 'w-40',  sortable: false },
 ];
 
-const ITEMS_PER_PAGE = 20;
+const ROWS_PER_PAGE_OPTIONS = [10, 20, 50, 100];
 
 function OrdersTableSkeleton() {
   return (
@@ -1955,6 +2243,9 @@ export function Orders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter]         = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [sortBy, setSortBy]         = useState(null);
+  const [sortOrder, setSortOrder]   = useState('asc'); // 'asc' or 'desc'
 
   useEffect(() => {
     let cancelled = false;
@@ -1984,6 +2275,18 @@ export function Orders() {
     return () => { cancelled = true; };
   }, [retryKey]);
 
+  // Handle column sort
+  const handleSort = (columnKey) => {
+    if (sortBy === columnKey) {
+      // Toggle sort order
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New column - default to ascending
+      setSortBy(columnKey);
+      setSortOrder('asc');
+    }
+  };
+
   // Filter and search logic
   const filteredOrders = orders.filter((order) => {
     // Search filter
@@ -1999,42 +2302,52 @@ export function Orders() {
     return matchesSearch && matchesFilter;
   });
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
+  // Apply sorting
+  const sortedOrders = [...filteredOrders];
+  if (sortBy) {
+    sortedOrders.sort((a, b) => {
+      const aVal = Number(a[sortBy]) || 0;
+      const bVal = Number(b[sortBy]) || 0;
+      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+    });
+  }
 
-  // Reset to page 1 when filters change
+  // Pagination logic
+  const totalPages = Math.ceil(sortedOrders.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const paginatedOrders = sortedOrders.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters, sorting, or rows per page change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filter]);
+  }, [searchTerm, filter, sortBy, sortOrder, rowsPerPage]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Orders</h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Orders</h1>
+          <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
             Professional analytics table with search, filter, and pagination
           </p>
         </div>
 
         {/* Error */}
         {!loading && error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
             <div className="flex items-start gap-3 flex-1">
-              <span className="text-red-500 text-lg mt-0.5">⚠</span>
+              <span className="text-red-500 dark:text-red-400 text-lg mt-0.5">⚠</span>
               <div>
-                <p className="text-red-700 font-semibold text-sm">Failed to load orders</p>
-                <p className="text-red-500 text-xs mt-0.5">{error}</p>
+                <p className="text-red-700 dark:text-red-300 font-semibold text-sm">Failed to load orders</p>
+                <p className="text-red-500 dark:text-red-400 text-xs mt-0.5">{error}</p>
               </div>
             </div>
             <button
               onClick={() => setRetryKey((k) => k + 1)}
-              className="shrink-0 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              className="shrink-0 bg-red-600 hover:bg-red-700 active:bg-red-800 dark:bg-red-700 dark:hover:bg-red-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
               Retry
             </button>
@@ -2042,56 +2355,103 @@ export function Orders() {
         )}
 
         {/* Table card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
 
           {/* Controls bar */}
           {!loading && !error && orders.length > 0 && (
-            <div className="p-6 border-b border-gray-100 flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700 space-y-4">
               
-              {/* Search */}
-              <div className="relative flex-1 max-w-md">
-                <svg 
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search by Order ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              {/* Top Row - Search and Filter */}
+              <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+                {/* Search */}
+                <div className="relative flex-1 max-w-md">
+                  <svg 
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search by Order ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-white transition-all"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter */}
+                <div className="flex items-center gap-3">
+                  <select
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-white cursor-pointer transition-all"
+                  >
+                    <option value="all">All Orders</option>
+                    <option value="breached">SLA Breached</option>
+                    <option value="non-breached">Non-Breached</option>
+                  </select>
+
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded-lg whitespace-nowrap">
+                    {sortedOrders.length.toLocaleString()} {sortedOrders.length === 1 ? 'order' : 'orders'}
+                  </span>
+                </div>
               </div>
 
-              {/* Filter and count */}
-              <div className="flex items-center gap-4">
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="px-4 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white cursor-pointer transition-all"
-                >
-                  <option value="all">All Orders</option>
-                  <option value="breached">SLA Breached</option>
-                  <option value="non-breached">Non-Breached</option>
-                </select>
+              {/* Bottom Row - Rows per page and active filters */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                {/* Rows per page */}
+                <div className="flex items-center gap-2">
+                  <label htmlFor="rowsPerPage" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Rows per page:
+                  </label>
+                  <select
+                    id="rowsPerPage"
+                    value={rowsPerPage}
+                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                    className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-white cursor-pointer transition-all"
+                  >
+                    {ROWS_PER_PAGE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <span className="text-xs font-medium text-gray-500 bg-gray-50 px-3 py-2 rounded-lg whitespace-nowrap">
-                  {filteredOrders.length.toLocaleString()} {filteredOrders.length === 1 ? 'order' : 'orders'}
-                </span>
+                {/* Active sorting indicator */}
+                {sortBy && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-gray-500 dark:text-gray-400">Sorted by:</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800">
+                      {ORDER_COLUMNS.find(col => col.key === sortBy)?.label}
+                      <span className="text-blue-400 dark:text-blue-500">
+                        {sortOrder === 'asc' ? '↑' : '↓'}
+                      </span>
+                    </span>
+                    <button
+                      onClick={() => setSortBy(null)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      title="Clear sorting"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -2104,26 +2464,26 @@ export function Orders() {
             {!loading && !error && orders.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
                 <span className="text-5xl opacity-20">📋</span>
-                <p className="text-gray-400 font-medium text-sm">No orders found</p>
-                <p className="text-gray-300 text-xs">
+                <p className="text-gray-400 dark:text-gray-500 font-medium text-sm">No orders found</p>
+                <p className="text-gray-300 dark:text-gray-600 text-xs">
                   Orders will appear here once data is available.
                 </p>
               </div>
             )}
 
             {/* No results from filter/search */}
-            {!loading && !error && orders.length > 0 && filteredOrders.length === 0 && (
+            {!loading && !error && orders.length > 0 && sortedOrders.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-                <span className="text-4xl opacity-20">🔍</span>
-                <p className="text-gray-400 font-medium text-sm">No matching orders</p>
-                <p className="text-gray-300 text-xs">
-                  Try adjusting your search or filter criteria.
+                <span className="text-5xl opacity-20">🔍</span>
+                <p className="text-gray-700 dark:text-gray-300 font-semibold text-sm">No matching orders</p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs max-w-xs">
+                  Try adjusting your search or filter criteria to find what you're looking for.
                 </p>
                 <button
-                  onClick={() => { setSearchTerm(''); setFilter('all'); }}
-                  className="mt-2 text-xs font-medium text-blue-600 hover:text-blue-800 underline underline-offset-2"
+                  onClick={() => { setSearchTerm(''); setFilter('all'); setSortBy(null); }}
+                  className="mt-3 px-4 py-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-white bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-600 dark:hover:bg-blue-600 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors"
                 >
-                  Clear filters
+                  Clear all filters
                 </button>
               </div>
             )}
@@ -2135,45 +2495,61 @@ export function Orders() {
                   <div className="inline-block min-w-full align-middle">
                     <div className="overflow-hidden">
                       <table className="min-w-full text-sm">
-                        <thead className="bg-gray-50 sticky top-0 z-10">
+                        <thead className="bg-gray-50 dark:bg-gray-900 border-b-2 border-gray-200 dark:border-gray-700">
                           <tr>
-                            {ORDER_COLUMNS.map(({ key, label }) => (
+                            {ORDER_COLUMNS.map(({ key, label, sortable }) => (
                               <th
                                 key={key}
-                                className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap first:pl-6 last:pr-6"
+                                className={`px-4 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap first:pl-6 last:pr-6 ${
+                                  sortable ? 'cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors' : ''
+                                }`}
+                                onClick={() => sortable && handleSort(key)}
                               >
-                                {label}
+                                <div className="flex items-center gap-1.5">
+                                  <span>{label}</span>
+                                  {sortable && (
+                                    <span className="inline-flex flex-col text-[10px] leading-none">
+                                      {sortBy === key ? (
+                                        <span className="text-blue-600 dark:text-blue-400 font-bold">
+                                          {sortOrder === 'asc' ? '↑' : '↓'}
+                                        </span>
+                                      ) : (
+                                        <span className="text-gray-300 dark:text-gray-600">↕</span>
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
                               </th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
                           {paginatedOrders.map((order, idx) => (
                             <tr
                               key={order.order_id ?? idx}
-                              className="hover:bg-blue-50/30 transition-colors"
+                              className="hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-colors"
                             >
                               {/* Order ID */}
-                              <td className="px-4 py-4 font-semibold text-gray-900 tabular-nums first:pl-6">
+                              <td className="px-4 py-4 font-semibold text-gray-900 dark:text-white tabular-nums first:pl-6">
                                 {order.order_id ?? '—'}
                               </td>
 
                               {/* Procurement Time */}
-                              <td className="px-4 py-4 text-gray-600 tabular-nums">
+                              <td className="px-4 py-4 text-gray-600 dark:text-gray-400 tabular-nums">
                                 {order.procurement_time != null
                                   ? `${Number(order.procurement_time).toFixed(1)}d`
                                   : '—'}
                               </td>
 
                               {/* Processing Time */}
-                              <td className="px-4 py-4 text-gray-600 tabular-nums">
+                              <td className="px-4 py-4 text-gray-600 dark:text-gray-400 tabular-nums">
                                 {order.processing_time != null
                                   ? `${Number(order.processing_time).toFixed(1)}d`
                                   : '—'}
                               </td>
 
                               {/* Total Time */}
-                              <td className="px-4 py-4 font-medium text-gray-900 tabular-nums">
+                              <td className="px-4 py-4 font-medium text-gray-900 dark:text-white tabular-nums">
                                 {order.total_time != null
                                   ? `${Number(order.total_time).toFixed(1)}d`
                                   : '—'}
@@ -2204,60 +2580,14 @@ export function Orders() {
                 </div>
 
                 {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-100">
-                    <p className="text-xs text-gray-500">
-                      Showing {startIndex + 1} to {Math.min(endIndex, filteredOrders.length)} of {filteredOrders.length} orders
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Previous
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          let pageNum;
-                          if (totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
-                          } else {
-                            pageNum = currentPage - 2 + i;
-                          }
-                          
-                          return (
-                            <button
-                              key={pageNum}
-                              onClick={() => setCurrentPage(pageNum)}
-                              className={`w-8 h-8 text-xs font-medium rounded-lg transition-colors ${
-                                currentPage === pageNum
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                              }`}
-                            >
-                              {pageNum}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={sortedOrders.length}
+                  startIndex={startIndex}
+                  endIndex={endIndex}
+                />
               </>
             )}
           </div>
