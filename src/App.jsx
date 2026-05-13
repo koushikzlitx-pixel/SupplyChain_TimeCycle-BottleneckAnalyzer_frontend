@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
-import Dashboard, { Orders, OrderDetails, ThemeProvider, Sidebar, Navbar } from './pages/Dashboard';
+import Dashboard, { Orders, OrderDetails, ThemeProvider, Sidebar, Navbar, ScrollToTop } from './pages/Dashboard';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <ThemeProvider>
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
         {/* Sidebar */}
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -17,7 +17,7 @@ function App() {
           <Navbar onMenuClick={() => setSidebarOpen(true)} />
 
           {/* Page Content */}
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto custom-scrollbar">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
@@ -26,6 +26,9 @@ function App() {
               <Route path="/analytics" element={<Dashboard />} />
             </Routes>
           </main>
+
+          {/* Scroll to Top Button */}
+          <ScrollToTop />
         </div>
       </div>
     </ThemeProvider>

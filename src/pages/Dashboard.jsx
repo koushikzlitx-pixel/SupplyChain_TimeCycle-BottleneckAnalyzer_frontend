@@ -85,7 +85,7 @@ export function Sidebar({ isOpen, onClose }) {
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden animate-fade-in"
           onClick={onClose}
         />
       )}
@@ -95,19 +95,23 @@ export function Sidebar({ isOpen, onClose }) {
         className={`
           fixed lg:sticky top-0 left-0 h-screen z-50
           w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800
-          transform transition-transform duration-300 ease-in-out
+          shadow-lg lg:shadow-none
+          transform transition-all duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          flex flex-col
+          flex flex-col custom-scrollbar overflow-y-auto
         `}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-800">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-            Supply Chain
-          </h2>
+        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🔗</span>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Supply Chain
+            </h2>
+          </div>
           <button
             onClick={onClose}
-            className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="lg:hidden text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -116,34 +120,50 @@ export function Sidebar({ isOpen, onClose }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-          {navItems.map((item) => (
+        <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
+          {navItems.map((item, index) => (
             <button
               key={item.path}
               onClick={() => {
                 navigate(item.path);
                 onClose();
               }}
+              style={{ animationDelay: `${index * 50}ms` }}
               className={`
-                w-full flex items-center gap-3 px-4 py-3 rounded-lg
-                text-sm font-medium transition-all duration-200
+                w-full flex items-center gap-3 px-4 py-3 rounded-xl
+                text-sm font-medium transition-all duration-200 group
+                animate-slide-down
                 ${
                   isActive(item.path)
-                    ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 shadow-sm'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                    ? 'bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-700 dark:text-blue-300 shadow-md border-l-4 border-blue-600'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1'
                 }
               `}
             >
-              <span className="text-xl">{item.icon}</span>
-              <span>{item.label}</span>
+              <span className={`text-xl transition-transform group-hover:scale-110 ${isActive(item.path) ? 'animate-bounce' : ''}`}>
+                {item.icon}
+              </span>
+              <span className="font-semibold">{item.label}</span>
+              {isActive(item.path) && (
+                <span className="ml-auto">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
+              )}
             </button>
           ))}
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            v1.0.0
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+          <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
+            <div className="font-semibold">Supply Chain Analytics</div>
+            <div>Version 1.0.0</div>
+            <div className="pt-2 flex items-center justify-center gap-1 text-blue-600 dark:text-blue-400">
+              <span>⚡</span>
+              <span className="font-medium">Enterprise Dashboard</span>
+            </div>
           </div>
         </div>
       </aside>
@@ -160,28 +180,34 @@ export function Navbar({ onMenuClick }) {
   const [searchTerm, setSearchTerm] = useState('');
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+    <header className="sticky top-0 z-30 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90">
       <div className="h-full flex items-center justify-between px-4 lg:px-6">
         {/* Left: Menu + Title */}
         <div className="flex items-center gap-4">
           <button
             onClick={onMenuClick}
-            className="lg:hidden text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+            className="lg:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+            aria-label="Toggle menu"
           >
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Analytics Dashboard
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Analytics Dashboard
+            </h1>
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
+              Live
+            </span>
+          </div>
         </div>
 
         {/* Center: Search (hidden on mobile) */}
         <div className="hidden md:flex flex-1 max-w-md mx-8">
-          <div className="relative w-full">
+          <div className="relative w-full group">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -190,10 +216,10 @@ export function Navbar({ onMenuClick }) {
             </svg>
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search orders, analytics..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
+              className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:text-white transition-all duration-200"
             />
           </div>
         </div>
@@ -202,11 +228,12 @@ export function Navbar({ onMenuClick }) {
         <div className="flex items-center gap-3">
           <button
             onClick={toggleTheme}
-            className="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
             title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
           >
             {theme === 'light' ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 animate-fade-in" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
               </svg>
             ) : (
@@ -327,6 +354,290 @@ export function DashboardStatsGrid({ children, loading, skeletonCount = 5 }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-8">
       {children}
     </div>
+  );
+}
+
+// AnalyticsCard — Enhanced card for analytics metrics
+export function AnalyticsCard({ title, value, subtitle, icon, trend, trendValue, loading, accentColor = 'blue' }) {
+  const accentClasses = {
+    blue: 'border-l-blue-500 dark:border-l-blue-400',
+    green: 'border-l-green-500 dark:border-l-green-400',
+    red: 'border-l-red-500 dark:border-l-red-400',
+    yellow: 'border-l-yellow-500 dark:border-l-yellow-400',
+    purple: 'border-l-purple-500 dark:border-l-purple-400',
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 animate-pulse">
+        <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-3" />
+        <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+        <div className="h-3 w-40 bg-gray-200 dark:bg-gray-700 rounded" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border-l-4 ${accentClasses[accentColor]} border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 p-5`}>
+      <div className="flex items-start justify-between mb-3">
+        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
+          {title}
+        </h3>
+        {icon && <span className="text-2xl">{icon}</span>}
+      </div>
+      <div className="flex items-baseline gap-3">
+        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          {value}
+        </p>
+        {trend && trendValue && (
+          <span className={`flex items-center text-xs font-medium ${
+            trend === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+          }`}>
+            {trend === 'up' ? '↑' : '↓'} {trendValue}
+          </span>
+        )}
+      </div>
+      {subtitle && (
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ChartContainer — Wrapper for chart components with consistent styling
+export function ChartContainer({ title, subtitle, children, loading, error, isEmpty, height = '400px', actions }) {
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse" />
+        <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded mb-6 animate-pulse" />
+        <div className={`bg-gray-100 dark:bg-gray-900 rounded-lg animate-pulse`} style={{ height }} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <span className="text-4xl mb-3">⚠️</span>
+          <p className="text-sm font-medium text-red-600 dark:text-red-400">Error loading chart</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isEmpty) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <span className="text-4xl mb-3 opacity-30">📊</span>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">No data available</p>
+          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Data will appear here once available</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
+            {title}
+          </h3>
+          {subtitle && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        {actions && (
+          <div className="flex items-center gap-2">
+            {actions}
+          </div>
+        )}
+      </div>
+      <div style={{ height }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// FilterPanel — Dashboard filter controls
+export function FilterPanel({ filters, onFilterChange, onReset }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 mb-6">
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+          {/* Date Range Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Date Range
+            </label>
+            <select
+              value={filters.dateRange || 'all'}
+              onChange={(e) => onFilterChange('dateRange', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+              <option value="quarter">Last 90 Days</option>
+            </select>
+          </div>
+
+          {/* Bottleneck Stage Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Bottleneck Stage
+            </label>
+            <select
+              value={filters.bottleneckStage || 'all'}
+              onChange={(e) => onFilterChange('bottleneckStage', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All Stages</option>
+              <option value="procurement">Procurement</option>
+              <option value="processing">Processing</option>
+              <option value="dispatch">Dispatch</option>
+              <option value="delivery">Delivery</option>
+            </select>
+          </div>
+
+          {/* SLA Status Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              SLA Status
+            </label>
+            <select
+              value={filters.slaStatus || 'all'}
+              onChange={(e) => onFilterChange('slaStatus', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All Orders</option>
+              <option value="ontime">On Time</option>
+              <option value="breached">Breached</option>
+            </select>
+          </div>
+
+          {/* Order Status Filter */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Order Status
+            </label>
+            <select
+              value={filters.orderStatus || 'all'}
+              onChange={(e) => onFilterChange('orderStatus', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All Statuses</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="delayed">Delayed</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Reset Button */}
+        <button
+          onClick={onReset}
+          className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors whitespace-nowrap"
+        >
+          Reset Filters
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// SkeletonLoader — Loading state for various components
+export function SkeletonLoader({ type = 'card', count = 1 }) {
+  if (type === 'card') {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {Array.from({ length: count }).map((_, i) => (
+          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 animate-pulse">
+            <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded mb-3" />
+            <div className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+            <div className="h-3 w-40 bg-gray-200 dark:bg-gray-700 rounded" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (type === 'chart') {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 animate-pulse">
+        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-2" />
+        <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded mb-6" />
+        <div className="h-80 bg-gray-100 dark:bg-gray-900 rounded-lg" />
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// EmptyState — Reusable empty state component
+export function EmptyState({ icon = '📊', title = 'No data available', description, action }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <span className="text-6xl mb-4 opacity-20">{icon}</span>
+      <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+        {title}
+      </h3>
+      {description && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-4">
+          {description}
+        </p>
+      )}
+      {action}
+    </div>
+  );
+}
+
+// ScrollToTop — Floating button to scroll to top
+export function ScrollToTop() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const toggleVisible = () => {
+      const scrolled = document.documentElement.scrollTop;
+      setVisible(scrolled > 300);
+    };
+
+    window.addEventListener('scroll', toggleVisible);
+    return () => window.removeEventListener('scroll', toggleVisible);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  };
+
+  if (!visible) return null;
+
+  return (
+    <button
+      onClick={scrollToTop}
+      className="fixed bottom-6 right-6 z-50 p-3 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 animate-fade-in"
+      aria-label="Scroll to top"
+    >
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+      </svg>
+    </button>
   );
 }
 
@@ -2040,6 +2351,338 @@ function SLABreachTable() {
 }
 
 // ---------------------------------------------------------------------------
+// Advanced Chart Components
+// ---------------------------------------------------------------------------
+
+// SLA Breach Trend Chart — Shows SLA breaches over time
+function SLABreachTrendChart() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Simulate trend data (replace with actual API call)
+    const generateTrendData = () => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+      return months.map((month) => ({
+        month,
+        onTime: Math.floor(Math.random() * 80) + 20,
+        breached: Math.floor(Math.random() * 30) + 10,
+      }));
+    };
+
+    setTimeout(() => {
+      setData(generateTrendData());
+      setLoading(false);
+    }, 500);
+  }, []);
+
+  return (
+    <ChartContainer
+      title="SLA Performance Trend"
+      subtitle="Monthly on-time vs breached orders"
+      loading={loading}
+      error={error}
+      isEmpty={data.length === 0}
+      height="350px"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <XAxis
+            dataKey="month"
+            tick={{ fill: '#6b7280', fontSize: 12 }}
+            tickLine={false}
+          />
+          <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#fff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            }}
+          />
+          <Legend
+            wrapperStyle={{ paddingTop: '20px' }}
+            iconType="circle"
+          />
+          <Line
+            type="monotone"
+            dataKey="onTime"
+            name="On Time"
+            stroke="#10b981"
+            strokeWidth={2}
+            dot={{ fill: '#10b981', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="breached"
+            name="Breached"
+            stroke="#ef4444"
+            strokeWidth={2}
+            dot={{ fill: '#ef4444', r: 4 }}
+            activeDot={{ r: 6 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartContainer>
+  );
+}
+
+// Monthly Order Analytics Chart — Bar chart showing order volumes
+function MonthlyOrderAnalyticsChart() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Simulate monthly data (replace with actual API call)
+    const generateMonthlyData = () => {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+      return months.map((month) => ({
+        month,
+        orders: Math.floor(Math.random() * 150) + 50,
+        avgTime: (Math.random() * 5 + 10).toFixed(1),
+      }));
+    };
+
+    setTimeout(() => {
+      setData(generateMonthlyData());
+      setLoading(false);
+    }, 500);
+  }, []);
+
+  return (
+    <ChartContainer
+      title="Monthly Order Volume"
+      subtitle="Total orders processed per month"
+      loading={loading}
+      error={error}
+      isEmpty={data.length === 0}
+      height="350px"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <XAxis
+            dataKey="month"
+            tick={{ fill: '#6b7280', fontSize: 12 }}
+            tickLine={false}
+          />
+          <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#fff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            }}
+            formatter={(value, name) => [
+              name === 'avgTime' ? `${value} days` : value,
+              name === 'orders' ? 'Orders' : 'Avg Time',
+            ]}
+          />
+          <Legend
+            wrapperStyle={{ paddingTop: '20px' }}
+            iconType="rect"
+          />
+          <Bar
+            dataKey="orders"
+            name="Orders"
+            fill="#3b82f6"
+            radius={[8, 8, 0, 0]}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartContainer>
+  );
+}
+
+// Order Lifecycle Trend Chart — Area chart showing order progression stages
+function OrderLifecycleTrendChart() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Simulate lifecycle data (replace with actual API call)
+    const generateLifecycleData = () => {
+      const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+      return weeks.map((week) => ({
+        week,
+        procurement: Math.floor(Math.random() * 40) + 60,
+        processing: Math.floor(Math.random() * 35) + 45,
+        dispatch: Math.floor(Math.random() * 30) + 30,
+        delivery: Math.floor(Math.random() * 25) + 15,
+      }));
+    };
+
+    setTimeout(() => {
+      setData(generateLifecycleData());
+      setLoading(false);
+    }, 500);
+  }, []);
+
+  const AreaChart = ({ children, ...props }) => {
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart {...props}>
+          {children}
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  return (
+    <ChartContainer
+      title="Order Lifecycle Progression"
+      subtitle="Orders by stage over time"
+      loading={loading}
+      error={error}
+      isEmpty={data.length === 0}
+      height="350px"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <XAxis
+            dataKey="week"
+            tick={{ fill: '#6b7280', fontSize: 12 }}
+            tickLine={false}
+          />
+          <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} tickLine={false} />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: '#fff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            }}
+          />
+          <Legend
+            wrapperStyle={{ paddingTop: '20px' }}
+            iconType="circle"
+          />
+          <Line
+            type="monotone"
+            dataKey="procurement"
+            name="Procurement"
+            stroke="#8b5cf6"
+            strokeWidth={2}
+            fill="#8b5cf6"
+            fillOpacity={0.1}
+          />
+          <Line
+            type="monotone"
+            dataKey="processing"
+            name="Processing"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            fill="#3b82f6"
+            fillOpacity={0.1}
+          />
+          <Line
+            type="monotone"
+            dataKey="dispatch"
+            name="Dispatch"
+            stroke="#f59e0b"
+            strokeWidth={2}
+            fill="#f59e0b"
+            fillOpacity={0.1}
+          />
+          <Line
+            type="monotone"
+            dataKey="delivery"
+            name="Delivery"
+            stroke="#10b981"
+            strokeWidth={2}
+            fill="#10b981"
+            fillOpacity={0.1}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </ChartContainer>
+  );
+}
+
+// Analytics Insights Panel — Key metrics and insights
+function AnalyticsInsightsPanel() {
+  const [insights, setInsights] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate insights data (replace with actual API call)
+    setTimeout(() => {
+      setInsights({
+        mostDelayedStage: 'Procurement',
+        highestBreachPct: 18.5,
+        fastestStage: 'Dispatch',
+        avgDeliveryTime: 12.3,
+        activeOrders: 1247,
+      });
+      setLoading(false);
+    }, 500);
+  }, []);
+
+  const insightCards = [
+    {
+      title: 'Most Delayed Stage',
+      value: insights?.mostDelayedStage || '—',
+      icon: '⏱️',
+      accentColor: 'red',
+      subtitle: 'Requires attention',
+    },
+    {
+      title: 'SLA Breach Rate',
+      value: insights?.highestBreachPct ? `${insights.highestBreachPct}%` : '—',
+      icon: '⚠️',
+      accentColor: 'yellow',
+      subtitle: 'Last 30 days',
+    },
+    {
+      title: 'Fastest Stage',
+      value: insights?.fastestStage || '—',
+      icon: '⚡',
+      accentColor: 'green',
+      subtitle: 'Most efficient',
+    },
+    {
+      title: 'Avg Delivery Time',
+      value: insights?.avgDeliveryTime ? `${insights.avgDeliveryTime}d` : '—',
+      icon: '🚚',
+      accentColor: 'blue',
+      subtitle: 'End-to-end',
+    },
+    {
+      title: 'Active Orders',
+      value: insights?.activeOrders ? insights.activeOrders.toLocaleString() : '—',
+      icon: '📦',
+      accentColor: 'purple',
+      subtitle: 'In progress',
+    },
+  ];
+
+  return (
+    <div className="mb-6">
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 tracking-tight">
+        📊 Key Insights
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        {insightCards.map((card) => (
+          <AnalyticsCard
+            key={card.title}
+            {...card}
+            loading={loading}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Dashboard
 // ---------------------------------------------------------------------------
 
@@ -2048,6 +2691,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [filters, setFilters] = useState({
+    dateRange: 'all',
+    bottleneckStage: 'all',
+    slaStatus: 'all',
+    orderStatus: 'all',
+  });
 
   const handleRetry = useCallback(() => setRetryKey((k) => k + 1), []);
 
@@ -2135,12 +2784,33 @@ export default function Dashboard() {
     year: 'numeric',
   });
 
+  // Filter handlers
+  const handleFilterChange = useCallback((filterKey, value) => {
+    setFilters(prev => ({ ...prev, [filterKey]: value }));
+  }, []);
+
+  const handleResetFilters = useCallback(() => {
+    setFilters({
+      dateRange: 'all',
+      bottleneckStage: 'all',
+      slaStatus: 'all',
+      orderStatus: 'all',
+    });
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── Page Header ── */}
         <DashboardHeader />
+
+        {/* ── Filter Panel ── */}
+        <FilterPanel
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onReset={handleResetFilters}
+        />
 
         {/* ── Error Banner ── */}
         {error && !loading && (
@@ -2161,33 +2831,43 @@ export default function Dashboard() {
 
         {/* ── Main Content ── */}
         {loading ? (
-          <LoadingSpinner />
+          <div className="space-y-6">
+            <SkeletonLoader type="card" count={5} />
+            <SkeletonLoader type="chart" count={1} />
+            <SkeletonLoader type="chart" count={1} />
+          </div>
         ) : !error ? (
           <div className="space-y-6">
 
-            {/* Top Row - Trend and SLA Overview */}
+            {/* Analytics Insights Panel */}
+            <AnalyticsInsightsPanel />
+
+            {/* First Row - Trend Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <OrderTrendChart />
+              <SLABreachTrendChart />
+            </div>
+
+            {/* Second Row - Monthly Analytics and Lifecycle */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <MonthlyOrderAnalyticsChart />
+              <OrderLifecycleTrendChart />
+            </div>
+
+            {/* Third Row - SLA Overview and Stage Delays */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <OrderTrendChart />
-              </div>
               <div className="lg:col-span-1">
                 <SLABreachPieChart />
               </div>
-            </div>
-
-            {/* Second Row - Stage Delays and Bottleneck Distribution */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
+              <div className="lg:col-span-2">
                 <StageDelayChart />
               </div>
-              <div>
-                <BottleneckDistributionChart />
-              </div>
             </div>
 
-            {/* Third Row - Detailed Bottleneck Chart */}
-            <div className="grid grid-cols-1">
+            {/* Fourth Row - Bottleneck Analysis */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <BottleneckChart />
+              <BottleneckDistributionChart />
             </div>
 
             {/* Bottom Row - SLA Breach Table */}
@@ -2236,6 +2916,7 @@ function OrdersTableSkeleton() {
 }
 
 export function Orders() {
+  const navigate = useNavigate();
   const [orders, setOrders]         = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
@@ -2527,10 +3208,11 @@ export function Orders() {
                           {paginatedOrders.map((order, idx) => (
                             <tr
                               key={order.order_id ?? idx}
-                              className="hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-colors"
+                              onClick={() => order.order_id && navigate(`/orders/${order.order_id}`)}
+                              className="hover:bg-blue-50/30 dark:hover:bg-blue-900/20 transition-all duration-200 cursor-pointer group"
                             >
                               {/* Order ID */}
-                              <td className="px-4 py-4 font-semibold text-gray-900 dark:text-white tabular-nums first:pl-6">
+                              <td className="px-4 py-4 font-semibold text-gray-900 dark:text-white tabular-nums first:pl-6 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                 {order.order_id ?? '—'}
                               </td>
 
@@ -2563,12 +3245,12 @@ export function Orders() {
                               {/* Bottleneck Stage */}
                               <td className="px-4 py-4 last:pr-6">
                                 {order.bottleneck_stage ? (
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-100 dark:border-purple-800">
                                     <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block" />
                                     {order.bottleneck_stage}
                                   </span>
                                 ) : (
-                                  <span className="text-gray-300 text-xs">—</span>
+                                  <span className="text-gray-300 dark:text-gray-600 text-xs">—</span>
                                 )}
                               </td>
                             </tr>
