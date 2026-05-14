@@ -642,6 +642,526 @@ export function ScrollToTop() {
 }
 
 // ---------------------------------------------------------------------------
+// Notification System
+// ---------------------------------------------------------------------------
+
+export function Notification({ type = 'info', message, onClose, autoClose = true, duration = 5000 }) {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    if (autoClose && visible) {
+      const timer = setTimeout(() => {
+        setVisible(false);
+        setTimeout(() => onClose?.(), 300);
+      }, duration);
+      return () => clearTimeout(timer);
+    }
+  }, [autoClose, duration, visible, onClose]);
+
+  if (!visible) return null;
+
+  const styles = {
+    success: {
+      bg: 'bg-green-50 dark:bg-green-900/20',
+      border: 'border-green-200 dark:border-green-800',
+      text: 'text-green-800 dark:text-green-300',
+      icon: '✓',
+      iconBg: 'bg-green-500',
+    },
+    error: {
+      bg: 'bg-red-50 dark:bg-red-900/20',
+      border: 'border-red-200 dark:border-red-800',
+      text: 'text-red-800 dark:text-red-300',
+      icon: '✕',
+      iconBg: 'bg-red-500',
+    },
+    warning: {
+      bg: 'bg-yellow-50 dark:bg-yellow-900/20',
+      border: 'border-yellow-200 dark:border-yellow-800',
+      text: 'text-yellow-800 dark:text-yellow-300',
+      icon: '⚠',
+      iconBg: 'bg-yellow-500',
+    },
+    info: {
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      border: 'border-blue-200 dark:border-blue-800',
+      text: 'text-blue-800 dark:text-blue-300',
+      icon: 'ℹ',
+      iconBg: 'bg-blue-500',
+    },
+  };
+
+  const style = styles[type] || styles.info;
+
+  return (
+    <div className={`fixed top-20 right-6 z-50 max-w-md animate-slide-down`}>
+      <div className={`${style.bg} ${style.border} border-l-4 rounded-lg shadow-lg p-4 flex items-start gap-3`}>
+        <div className={`${style.iconBg} rounded-full w-6 h-6 flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}>
+          {style.icon}
+        </div>
+        <p className={`${style.text} text-sm font-medium flex-1`}>{message}</p>
+        <button
+          onClick={() => {
+            setVisible(false);
+            setTimeout(() => onClose?.(), 300);
+          }}
+          className={`${style.text} hover:opacity-70 transition-opacity`}
+          aria-label="Close notification"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// NotificationProvider — Context for managing notifications
+const NotificationContext = React.createContext();
+
+export function NotificationProvider({ children }) {
+  const [notifications, setNotifications] = useState([]);
+
+  const addNotification = useCallback((type, message, duration = 5000) => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, type, message, duration }]);
+  }, []);
+
+  const removeNotification = useCallback((id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+
+  return (
+    <NotificationContext.Provider value={{ addNotification }}>
+      {children}
+      {notifications.map(notif => (
+        <Notification
+          key={notif.id}
+          type={notif.type}
+          message={notif.message}
+          duration={notif.duration}
+          onClose={() => removeNotification(notif.id)}
+        />
+      ))}
+    </NotificationContext.Provider>
+  );
+}
+
+export function useNotification() {
+  const context = React.useContext(NotificationContext);
+  if (!context) {
+    throw new Error('useNotification must be used within NotificationProvider');
+  }
+  return context;
+}
+
+// ---------------------------------------------------------------------------
+// Report Export Components
+// ---------------------------------------------------------------------------
+
+export function ReportExportButton({ onExport, type = 'csv', loading = false, label }) {
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await onExport?.();
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const icons = {
+    csv: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    pdf: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    ),
+    excel: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      </svg>
+    ),
+  };
+
+  return (
+    <button
+      onClick={handleExport}
+      disabled={exporting || loading}
+      className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+      aria-label={`Export as ${type.toUpperCase()}`}
+    >
+      {exporting ? (
+        <>
+          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>Exporting...</span>
+        </>
+      ) : (
+        <>
+          {icons[type]}
+          <span>{label || `Export ${type.toUpperCase()}`}</span>
+        </>
+      )}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard Widget Component
+// ---------------------------------------------------------------------------
+
+export function DashboardWidget({ id, title, children, onRemove, onToggle, visible = true, customizable = true }) {
+  const [isVisible, setIsVisible] = useState(visible);
+
+  useEffect(() => {
+    setIsVisible(visible);
+  }, [visible]);
+
+  if (!isVisible && customizable) return null;
+
+  return (
+    <div className="relative group">
+      {customizable && (
+        <div className="absolute -top-2 -right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+          <button
+            onClick={() => {
+              setIsVisible(false);
+              onToggle?.(id, false);
+            }}
+            className="p-1 bg-gray-800 dark:bg-gray-700 text-white rounded-full shadow-lg hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+            title="Hide widget"
+            aria-label="Hide widget"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+            </svg>
+          </button>
+          {onRemove && (
+            <button
+              onClick={() => onRemove?.(id)}
+              className="p-1 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 transition-colors"
+              title="Remove widget"
+              aria-label="Remove widget"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+      <div className="h-full">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Activity Panel Component
+// ---------------------------------------------------------------------------
+
+export function ActivityPanel() {
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Simulate loading activities (replace with actual API call)
+    setTimeout(() => {
+      setActivities([
+        {
+          id: 1,
+          type: 'order',
+          icon: '📦',
+          title: 'New order created',
+          description: 'Order #1024 - Procurement stage',
+          timestamp: '2 minutes ago',
+          color: 'blue',
+        },
+        {
+          id: 2,
+          type: 'breach',
+          icon: '⚠️',
+          title: 'SLA breach detected',
+          description: 'Order #987 exceeded delivery SLA',
+          timestamp: '15 minutes ago',
+          color: 'red',
+        },
+        {
+          id: 3,
+          type: 'export',
+          icon: '📊',
+          title: 'Report exported',
+          description: 'Analytics dashboard CSV export',
+          timestamp: '1 hour ago',
+          color: 'green',
+        },
+        {
+          id: 4,
+          type: 'order',
+          icon: '✓',
+          title: 'Order completed',
+          description: 'Order #956 delivered successfully',
+          timestamp: '2 hours ago',
+          color: 'green',
+        },
+      ]);
+      setLoading(false);
+    }, 500);
+  }, []);
+
+  const colorClasses = {
+    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+    red: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+    green: 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+    yellow: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+        Recent Activity
+      </h3>
+
+      {loading ? (
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-3 animate-pulse">
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : activities.length === 0 ? (
+        <EmptyState
+          icon="📭"
+          title="No recent activity"
+          description="Activity will appear here as events occur"
+        />
+      ) : (
+        <div className="space-y-4">
+          {activities.map((activity) => (
+            <div
+              key={activity.id}
+              className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group"
+            >
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0 ${colorClasses[activity.color]}`}>
+                {activity.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  {activity.title}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {activity.description}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  {activity.timestamp}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Global Filter Panel (Advanced)
+// ---------------------------------------------------------------------------
+
+export function GlobalFilterPanel({ filters, onFilterChange, onReset, onApply }) {
+  const [localFilters, setLocalFilters] = useState(filters);
+  const [expanded, setExpanded] = useState(false);
+
+  const handleLocalChange = (key, value) => {
+    setLocalFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleApply = () => {
+    onApply?.(localFilters);
+    Object.keys(localFilters).forEach(key => {
+      onFilterChange(key, localFilters[key]);
+    });
+  };
+
+  const handleReset = () => {
+    const resetFilters = {
+      dateRange: 'all',
+      bottleneckStage: 'all',
+      slaStatus: 'all',
+      orderStatus: 'all',
+      processingDuration: 'all',
+      deliveryDuration: 'all',
+    };
+    setLocalFilters(resetFilters);
+    onReset?.();
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-6">
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Advanced Filters
+          </h3>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+          >
+            {expanded ? 'Show Less' : 'Show More'}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Date Range */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Date Range
+            </label>
+            <select
+              value={localFilters.dateRange || 'all'}
+              onChange={(e) => handleLocalChange('dateRange', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+              <option value="quarter">Last 90 Days</option>
+            </select>
+          </div>
+
+          {/* Bottleneck Stage */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              Bottleneck Stage
+            </label>
+            <select
+              value={localFilters.bottleneckStage || 'all'}
+              onChange={(e) => handleLocalChange('bottleneckStage', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All Stages</option>
+              <option value="procurement">Procurement</option>
+              <option value="processing">Processing</option>
+              <option value="dispatch">Dispatch</option>
+              <option value="delivery">Delivery</option>
+            </select>
+          </div>
+
+          {/* SLA Status */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+              SLA Status
+            </label>
+            <select
+              value={localFilters.slaStatus || 'all'}
+              onChange={(e) => handleLocalChange('slaStatus', e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+            >
+              <option value="all">All Orders</option>
+              <option value="ontime">On Time</option>
+              <option value="breached">Breached</option>
+            </select>
+          </div>
+
+          {expanded && (
+            <>
+              {/* Order Status */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                  Order Status
+                </label>
+                <select
+                  value={localFilters.orderStatus || 'all'}
+                  onChange={(e) => handleLocalChange('orderStatus', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="delayed">Delayed</option>
+                </select>
+              </div>
+
+              {/* Processing Duration */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                  Processing Duration
+                </label>
+                <select
+                  value={localFilters.processingDuration || 'all'}
+                  onChange={(e) => handleLocalChange('processingDuration', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="all">Any Duration</option>
+                  <option value="fast">&lt; 5 days</option>
+                  <option value="medium">5-10 days</option>
+                  <option value="slow">&gt; 10 days</option>
+                </select>
+              </div>
+
+              {/* Delivery Duration */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">
+                  Delivery Duration
+                </label>
+                <select
+                  value={localFilters.deliveryDuration || 'all'}
+                  onChange={(e) => handleLocalChange('deliveryDuration', e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="all">Any Duration</option>
+                  <option value="fast">&lt; 3 days</option>
+                  <option value="medium">3-7 days</option>
+                  <option value="slow">&gt; 7 days</option>
+                </select>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleApply}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+          >
+            Apply Filters
+          </button>
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors"
+          >
+            Reset All
+          </button>
+          <span className="text-xs text-gray-500 dark:text-gray-400 ml-auto">
+            {Object.values(localFilters).filter(v => v !== 'all').length} filters active
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Analytics service — centralised API functions
 // ---------------------------------------------------------------------------
 
@@ -2696,9 +3216,37 @@ export default function Dashboard() {
     bottleneckStage: 'all',
     slaStatus: 'all',
     orderStatus: 'all',
+    processingDuration: 'all',
+    deliveryDuration: 'all',
   });
 
+  // Dashboard customization state with localStorage persistence
+  const [widgetVisibility, setWidgetVisibility] = useState(() => {
+    const saved = localStorage.getItem('dashboardWidgets');
+    return saved ? JSON.parse(saved) : {
+      kpiCards: true,
+      insights: true,
+      trendCharts: true,
+      monthlyCharts: true,
+      slaCharts: true,
+      bottleneckCharts: true,
+      breachTable: true,
+      activityPanel: true,
+    };
+  });
+
+  const [notification, setNotification] = useState(null);
+
   const handleRetry = useCallback(() => setRetryKey((k) => k + 1), []);
+
+  // Save widget visibility to localStorage
+  useEffect(() => {
+    localStorage.setItem('dashboardWidgets', JSON.stringify(widgetVisibility));
+  }, [widgetVisibility]);
+
+  const toggleWidget = useCallback((widgetId, visible) => {
+    setWidgetVisibility(prev => ({ ...prev, [widgetId]: visible }));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -2789,27 +3337,104 @@ export default function Dashboard() {
     setFilters(prev => ({ ...prev, [filterKey]: value }));
   }, []);
 
+  const handleFilterApply = useCallback((appliedFilters) => {
+    setFilters(appliedFilters);
+    setNotification({
+      type: 'success',
+      message: 'Filters applied successfully',
+    });
+    setTimeout(() => setNotification(null), 3000);
+  }, []);
+
   const handleResetFilters = useCallback(() => {
-    setFilters({
+    const resetFilters = {
       dateRange: 'all',
       bottleneckStage: 'all',
       slaStatus: 'all',
       orderStatus: 'all',
+      processingDuration: 'all',
+      deliveryDuration: 'all',
+    };
+    setFilters(resetFilters);
+    setNotification({
+      type: 'info',
+      message: 'All filters reset',
     });
+    setTimeout(() => setNotification(null), 3000);
+  }, []);
+
+  // Export handlers
+  const handleExportCSV = useCallback(async () => {
+    try {
+      await exportAnalyticsCSV();
+      setNotification({
+        type: 'success',
+        message: 'Dashboard data exported to CSV successfully',
+      });
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: 'Failed to export CSV: ' + err.message,
+      });
+    }
+    setTimeout(() => setNotification(null), 5000);
+  }, []);
+
+  const handleExportPDF = useCallback(async () => {
+    // Simulated PDF export
+    setNotification({
+      type: 'info',
+      message: 'PDF export feature coming soon',
+    });
+    setTimeout(() => setNotification(null), 3000);
   }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Notifications */}
+      {notification && (
+        <Notification
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* ── Page Header ── */}
         <DashboardHeader />
 
-        {/* ── Filter Panel ── */}
-        <FilterPanel
+        {/* ── Executive Summary Banner ── */}
+        <div className="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Executive Summary</h2>
+              <p className="text-blue-100 text-sm">
+                Real-time analytics dashboard • Last updated: {lastUpdated}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <ReportExportButton
+                type="csv"
+                onExport={handleExportCSV}
+                label="Export CSV"
+              />
+              <ReportExportButton
+                type="pdf"
+                onExport={handleExportPDF}
+                label="Export PDF"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Global Filter Panel ── */}
+        <GlobalFilterPanel
           filters={filters}
           onFilterChange={handleFilterChange}
           onReset={handleResetFilters}
+          onApply={handleFilterApply}
         />
 
         {/* ── Error Banner ── */}
@@ -2817,17 +3442,25 @@ export default function Dashboard() {
           <ErrorBanner message={error} onRetry={handleRetry} />
         )}
 
-        {/* ── Summary Cards (KPIBox) ── */}
-        <DashboardStatsGrid loading={loading}>
-          {cards.map((card) => (
-            <KPIBox
-              key={card.title}
-              title={card.title}
-              value={card.value}
-              subtitle={card.subtitle}
-            />
-          ))}
-        </DashboardStatsGrid>
+        {/* ── KPI Cards ── */}
+        {widgetVisibility.kpiCards && (
+          <DashboardWidget
+            id="kpiCards"
+            onToggle={toggleWidget}
+            visible={widgetVisibility.kpiCards}
+          >
+            <DashboardStatsGrid loading={loading}>
+              {cards.map((card) => (
+                <KPIBox
+                  key={card.title}
+                  title={card.title}
+                  value={card.value}
+                  subtitle={card.subtitle}
+                />
+              ))}
+            </DashboardStatsGrid>
+          </DashboardWidget>
+        )}
 
         {/* ── Main Content ── */}
         {loading ? (
@@ -2840,40 +3473,105 @@ export default function Dashboard() {
           <div className="space-y-6">
 
             {/* Analytics Insights Panel */}
-            <AnalyticsInsightsPanel />
+            {widgetVisibility.insights && (
+              <DashboardWidget
+                id="insights"
+                onToggle={toggleWidget}
+                visible={widgetVisibility.insights}
+              >
+                <AnalyticsInsightsPanel />
+              </DashboardWidget>
+            )}
 
-            {/* First Row - Trend Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <OrderTrendChart />
-              <SLABreachTrendChart />
+            {/* First Row - Trend Charts and Activity Panel */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {widgetVisibility.trendCharts && (
+                <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <DashboardWidget
+                    id="trendCharts"
+                    onToggle={toggleWidget}
+                    visible={widgetVisibility.trendCharts}
+                  >
+                    <OrderTrendChart />
+                  </DashboardWidget>
+                  <DashboardWidget
+                    id="slaBreachTrendChart"
+                    onToggle={toggleWidget}
+                    visible={widgetVisibility.trendCharts}
+                  >
+                    <SLABreachTrendChart />
+                  </DashboardWidget>
+                </div>
+              )}
+              {widgetVisibility.activityPanel && (
+                <div className="lg:col-span-1">
+                  <DashboardWidget
+                    id="activityPanel"
+                    onToggle={toggleWidget}
+                    visible={widgetVisibility.activityPanel}
+                  >
+                    <ActivityPanel />
+                  </DashboardWidget>
+                </div>
+              )}
             </div>
 
             {/* Second Row - Monthly Analytics and Lifecycle */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <MonthlyOrderAnalyticsChart />
-              <OrderLifecycleTrendChart />
-            </div>
+            {widgetVisibility.monthlyCharts && (
+              <DashboardWidget
+                id="monthlyCharts"
+                onToggle={toggleWidget}
+                visible={widgetVisibility.monthlyCharts}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <MonthlyOrderAnalyticsChart />
+                  <OrderLifecycleTrendChart />
+                </div>
+              </DashboardWidget>
+            )}
 
             {/* Third Row - SLA Overview and Stage Delays */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
-                <SLABreachPieChart />
-              </div>
-              <div className="lg:col-span-2">
-                <StageDelayChart />
-              </div>
-            </div>
+            {widgetVisibility.slaCharts && (
+              <DashboardWidget
+                id="slaCharts"
+                onToggle={toggleWidget}
+                visible={widgetVisibility.slaCharts}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-1">
+                    <SLABreachPieChart />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <StageDelayChart />
+                  </div>
+                </div>
+              </DashboardWidget>
+            )}
 
             {/* Fourth Row - Bottleneck Analysis */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <BottleneckChart />
-              <BottleneckDistributionChart />
-            </div>
+            {widgetVisibility.bottleneckCharts && (
+              <DashboardWidget
+                id="bottleneckCharts"
+                onToggle={toggleWidget}
+                visible={widgetVisibility.bottleneckCharts}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <BottleneckChart />
+                  <BottleneckDistributionChart />
+                </div>
+              </DashboardWidget>
+            )}
 
             {/* Bottom Row - SLA Breach Table */}
-            <div className="grid grid-cols-1">
-              <SLABreachTable />
-            </div>
+            {widgetVisibility.breachTable && (
+              <DashboardWidget
+                id="breachTable"
+                onToggle={toggleWidget}
+                visible={widgetVisibility.breachTable}
+              >
+                <SLABreachTable />
+              </DashboardWidget>
+            )}
 
           </div>
         ) : null}
@@ -3364,42 +4062,43 @@ export function OrderDetails({ orderId: propOrderId }) {
   ] : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900" role="main" aria-label="Order Details Page">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Header */}
-        <div className="mb-8">
+        <header className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <button
               onClick={() => window.history.back()}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Go back to orders list"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </button>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
               Order Details
             </h1>
           </div>
-          <p className="text-sm text-gray-400">
-            Comprehensive analytics and timeline for order {orderId}
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            Comprehensive analytics and timeline for order <span className="font-semibold text-gray-600 dark:text-gray-400">{orderId}</span>
           </p>
-        </div>
+        </header>
 
         {/* Loading */}
         {loading && (
-          <div className="flex flex-col items-center justify-center py-32 gap-4">
-            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-gray-400 text-sm">Loading order details...</p>
+          <div className="flex flex-col items-center justify-center py-32 gap-4" role="status" aria-live="polite">
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+            <p className="text-gray-400 dark:text-gray-500 text-sm">Loading order details...</p>
           </div>
         )}
 
         {/* Error */}
         {!loading && error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-8 flex flex-col items-center gap-4 text-center">
-            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-              <span className="text-3xl">⚠️</span>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-8 flex flex-col items-center gap-4 text-center" role="alert" aria-live="assertive">
+            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <span className="text-3xl" aria-hidden="true">⚠️</span>
             </div>
             <div>
               <p className="text-red-700 font-semibold text-base">Failed to load order</p>
