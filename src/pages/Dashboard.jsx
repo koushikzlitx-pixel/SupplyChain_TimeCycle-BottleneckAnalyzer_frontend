@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext, useMemo, memo, lazy, Suspense } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -17,7 +17,37 @@ import {
   Legend,
 } from 'recharts';
 
+// ===========================================================================
+// Configuration Constants & Global Settings
+// ===========================================================================
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_TIMEOUT = 15000;
+const AUTO_REFRESH_INTERVAL = 300000; // 5 minutes
+const CACHE_DURATION = 60000; // 1 minute
+
+const CHART_COLORS = {
+  primary: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'],
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  info: '#3b82f6',
+  neutral: '#6b7280',
+};
+
+const ANIMATION_DURATIONS = {
+  fast: 200,
+  medium: 300,
+  slow: 500,
+};
+
+const BREAKPOINTS = {
+  sm: 640,
+  md: 768,
+  lg: 1024,
+  xl: 1280,
+  '2xl': 1536,
+};
 
 // ---------------------------------------------------------------------------
 // Theme Context — Dark Mode Support
@@ -64,21 +94,156 @@ export function useTheme() {
 }
 
 // ---------------------------------------------------------------------------
-// Sidebar Component — Navigation Sidebar
+// Error Boundary — Centralized Error Handling
 // ---------------------------------------------------------------------------
 
-export function Sidebar({ isOpen, onClose }) {
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+    this.setState({ error, errorInfo });
+    
+    // Log to error tracking service in production
+    if (import.meta.env.PROD) {
+      // Example: Send to error tracking service
+      // errorTrackingService.logError(error, errorInfo);
+    }
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null, errorInfo: null });
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-red-50 dark:from-gray-900 dark:via-gray-900 dark:to-red-900/20 flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-red-200 dark:border-red-800 p-8 animate-fade-in">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <span className="text-4xl">⚠️</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Something went wrong</h1>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                  The application encountered an unexpected error
+                </p>
+              </div>
+            </div>
+
+            {import.meta.env.DEV && this.state.error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                <p className="font-mono text-xs text-red-800 dark:text-red-300 break-all">
+                  {this.state.error.toString()}
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={this.handleReset}
+                className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Reload Application
+              </button>
+              <button
+                onClick={() => window.history.back()}
+                className="px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+export { ErrorBoundary };
+
+// Enhanced Error Fallback UI Component
+export const ErrorFallback = memo(function ErrorFallback({ error, resetError, title = 'Error Loading Data' }) {
+  return (
+    <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl p-8 flex flex-col items-center gap-4 text-center animate-fade-in">
+      <div className="w-20 h-20 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center animate-scale-in">
+        <span className="text-4xl">⚠️</span>
+      </div>
+      <div>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{title}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md">
+          {error?.message || 'An unexpected error occurred. Please try again.'}
+        </p>
+      </div>
+      {resetError && (
+        <button
+          onClick={resetError}
+          className="mt-2 px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+        >
+          Try Again
+        </button>
+      )}
+    </div>
+  );
+});
+
+// Network Error Handler Component
+export const NetworkError = memo(function NetworkError({ onRetry }) {
+  return (
+    <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl p-8 flex flex-col items-center gap-4 text-center animate-fade-in">
+      <div className="w-20 h-20 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+        <span className="text-4xl">📡</span>
+      </div>
+      <div>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Network Connection Error</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md">
+          Unable to connect to the server. Please check your internet connection and try again.
+        </p>
+      </div>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="mt-2 px-6 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+        >
+          Retry Connection
+        </button>
+      )}
+    </div>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Sidebar Component — Navigation Sidebar (Optimized with memo)
+// ---------------------------------------------------------------------------
+
+export const Sidebar = memo(function Sidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme } = useTheme();
 
-  const navItems = [
+  const navItems = useMemo(() => [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/orders', label: 'Orders', icon: '📦' },
     { path: '/analytics', label: 'Analytics', icon: '📈' },
-  ];
+  ], []);
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
+
+  const handleNavigation = useCallback((path) => {
+    navigate(path);
+    onClose();
+  }, [navigate, onClose]);
 
   return (
     <>
@@ -124,10 +289,7 @@ export function Sidebar({ isOpen, onClose }) {
           {navItems.map((item, index) => (
             <button
               key={item.path}
-              onClick={() => {
-                navigate(item.path);
-                onClose();
-              }}
+              onClick={() => handleNavigation(item.path)}
               style={{ animationDelay: `${index * 50}ms` }}
               className={`
                 w-full flex items-center gap-3 px-4 py-3 rounded-xl
@@ -139,6 +301,8 @@ export function Sidebar({ isOpen, onClose }) {
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:translate-x-1'
                 }
               `}
+              aria-label={`Navigate to ${item.label}`}
+              aria-current={isActive(item.path) ? 'page' : undefined}
             >
               <span className={`text-xl transition-transform group-hover:scale-110 ${isActive(item.path) ? 'animate-bounce' : ''}`}>
                 {item.icon}
@@ -169,15 +333,19 @@ export function Sidebar({ isOpen, onClose }) {
       </aside>
     </>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
-// Navbar Component — Top Navigation Bar
+// Navbar Component — Top Navigation Bar (Optimized with memo)
 // ---------------------------------------------------------------------------
 
-export function Navbar({ onMenuClick }) {
+export const Navbar = memo(function Navbar({ onMenuClick }) {
   const { theme, toggleTheme } = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90">
@@ -218,8 +386,9 @@ export function Navbar({ onMenuClick }) {
               type="text"
               placeholder="Search orders, analytics..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:text-white transition-all duration-200"
+              aria-label="Search orders and analytics"
             />
           </div>
         </div>
@@ -246,19 +415,22 @@ export function Navbar({ onMenuClick }) {
       </div>
     </header>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
-// Reusable Components
+// Reusable Components (Optimized with memo)
 // ---------------------------------------------------------------------------
 
 // SortDropdown — Dropdown for sorting options
-export function SortDropdown({ value, onChange, options }) {
+export const SortDropdown = memo(function SortDropdown({ value, onChange, options }) {
+  const handleChange = useCallback((e) => onChange(e.target.value), [onChange]);
+
   return (
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-white cursor-pointer transition-all"
+      onChange={handleChange}
+      className="px-4 py-2.5 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 dark:text-white cursor-pointer transition-all hover:border-blue-400 dark:hover:border-blue-600"
+      aria-label="Sort options"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -267,10 +439,10 @@ export function SortDropdown({ value, onChange, options }) {
       ))}
     </select>
   );
-}
+});
 
-// Pagination — Reusable pagination component
-export function Pagination({ currentPage, totalPages, onPageChange, totalItems, startIndex, endIndex }) {
+// Pagination — Reusable pagination component (Optimized with memo)
+export const Pagination = memo(function Pagination({ currentPage, totalPages, onPageChange, totalItems, startIndex, endIndex }) {
   if (totalPages <= 1) return null;
 
   return (
@@ -329,10 +501,10 @@ export function Pagination({ currentPage, totalPages, onPageChange, totalItems, 
       </div>
     </div>
   );
-}
+});
 
-// DashboardStatsGrid — Grid container for KPI cards
-export function DashboardStatsGrid({ children, loading, skeletonCount = 5 }) {
+// DashboardStatsGrid — Grid container for KPI cards (Optimized with memo)
+export const DashboardStatsGrid = memo(function DashboardStatsGrid({ children, loading, skeletonCount = 5 }) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 mb-8">
@@ -1261,10 +1433,14 @@ export async function generateDummyData() {
 }
 
 // ---------------------------------------------------------------------------
-// KPIBox — reusable analytics card
+// KPIBox — reusable analytics card (Optimized with memo and animations)
 // ---------------------------------------------------------------------------
 
-function KPIBox({ title, value, subtitle }) {
+const KPIBox = memo(function KPIBox({ title, value, subtitle }) {
+  const displayValue = useMemo(() => {
+    return value != null && value !== '' ? value : <span className="text-gray-200 dark:text-gray-600">—</span>;
+  }, [value]);
+
   return (
     <div
       className="
@@ -1273,11 +1449,13 @@ function KPIBox({ title, value, subtitle }) {
         rounded-2xl
         border border-gray-100 dark:border-gray-700
         shadow-sm
-        hover:shadow-md hover:-translate-y-0.5
-        transition-all duration-200 ease-in-out
+        hover:shadow-xl hover:-translate-y-1
+        transition-all duration-300 ease-out
         p-6
         flex flex-col gap-1.5
         w-full
+        animate-fade-in
+        hover:border-blue-200 dark:hover:border-blue-800
       "
     >
       {/* Title */}
@@ -1286,8 +1464,8 @@ function KPIBox({ title, value, subtitle }) {
       </span>
 
       {/* Value */}
-      <p className="text-3xl font-bold text-gray-900 dark:text-white leading-tight mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200">
-        {value != null && value !== '' ? value : <span className="text-gray-200 dark:text-gray-600">—</span>}
+      <p className="text-3xl font-bold text-gray-900 dark:text-white leading-tight mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-300 tabular-nums">
+        {displayValue}
       </p>
 
       {/* Subtitle */}
@@ -1296,7 +1474,7 @@ function KPIBox({ title, value, subtitle }) {
       )}
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // ChartCard — reusable container for dashboard charts
@@ -3222,32 +3400,50 @@ export default function Dashboard() {
 
   // Dashboard customization state with localStorage persistence
   const [widgetVisibility, setWidgetVisibility] = useState(() => {
-    const saved = localStorage.getItem('dashboardWidgets');
-    return saved ? JSON.parse(saved) : {
-      kpiCards: true,
-      insights: true,
-      trendCharts: true,
-      monthlyCharts: true,
-      slaCharts: true,
-      bottleneckCharts: true,
-      breachTable: true,
-      activityPanel: true,
-    };
+    try {
+      const saved = localStorage.getItem('dashboardWidgets');
+      return saved ? JSON.parse(saved) : {
+        kpiCards: true,
+        insights: true,
+        trendCharts: true,
+        monthlyCharts: true,
+        slaCharts: true,
+        bottleneckCharts: true,
+        breachTable: true,
+        activityPanel: true,
+      };
+    } catch {
+      return {
+        kpiCards: true,
+        insights: true,
+        trendCharts: true,
+        monthlyCharts: true,
+        slaCharts: true,
+        bottleneckCharts: true,
+        breachTable: true,
+        activityPanel: true,
+      };
+    }
   });
 
   const [notification, setNotification] = useState(null);
 
   const handleRetry = useCallback(() => setRetryKey((k) => k + 1), []);
 
-  // Save widget visibility to localStorage
+  // Save widget visibility to localStorage with error handling
   useEffect(() => {
-    localStorage.setItem('dashboardWidgets', JSON.stringify(widgetVisibility));
+    try {
+      localStorage.setItem('dashboardWidgets', JSON.stringify(widgetVisibility));
+    } catch (err) {
+      console.error('Failed to save widget visibility:', err);
+    }
   }, [widgetVisibility]);
 
   const toggleWidget = useCallback((widgetId, visible) => {
     setWidgetVisibility(prev => ({ ...prev, [widgetId]: visible }));
   }, []);
 
+  // Fetch summary analytics with cleanup
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -3272,14 +3468,17 @@ export default function Dashboard() {
     };
   }, [retryKey]);
 
-  // Calculate SLA breach percentage
-  const slaTotal = (summary?.slaOnTime ?? 0) + (summary?.slaBreaches ?? 0);
-  const slaBreachPct = slaTotal > 0 
-    ? ((summary?.slaBreaches ?? 0) / slaTotal * 100).toFixed(1)
-    : '0.0';
+  // Memoized SLA calculations
+  const slaMetrics = useMemo(() => {
+    const slaTotal = (summary?.slaOnTime ?? 0) + (summary?.slaBreaches ?? 0);
+    const slaBreachPct = slaTotal > 0 
+      ? ((summary?.slaBreaches ?? 0) / slaTotal * 100).toFixed(1)
+      : '0.0';
+    return { slaTotal, slaBreachPct };
+  }, [summary]);
 
-  // Summary cards configuration
-  const cards = [
+  // Memoized summary cards configuration
+  const cards = useMemo(() => [
     {
       title: 'Total Orders',
       value: summary?.totalOrders != null ? summary.totalOrders.toLocaleString() : null,
@@ -3299,8 +3498,8 @@ export default function Dashboard() {
     },
     {
       title: 'SLA Breach Percentage',
-      value: summary ? `${slaBreachPct}%` : null,
-      subtitle: `${summary?.slaBreaches ?? 0} of ${slaTotal} orders`,
+      value: summary ? `${slaMetrics.slaBreachPct}%` : null,
+      subtitle: `${summary?.slaBreaches ?? 0} of ${slaMetrics.slaTotal} orders`,
       icon: '⚠️',
       accentClass: 'border-red-500',
     },
@@ -3324,15 +3523,18 @@ export default function Dashboard() {
       icon: '⚙️',
       accentClass: 'border-amber-500',
     },
-  ];
+  ], [summary, slaMetrics]);
 
-  const lastUpdated = new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // Memoized last updated date
+  const lastUpdated = useMemo(() => {
+    return new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, []);
 
-  // Filter handlers
+  // Filter handlers with useCallback for optimization
   const handleFilterChange = useCallback((filterKey, value) => {
     setFilters(prev => ({ ...prev, [filterKey]: value }));
   }, []);
