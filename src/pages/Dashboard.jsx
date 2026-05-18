@@ -579,25 +579,38 @@ export function AnalyticsCard({ title, value, subtitle, icon, trend, trendValue,
 }
 
 // ChartContainer — Wrapper for chart components with consistent styling
-export function ChartContainer({ title, subtitle, children, loading, error, isEmpty, height = '400px', actions }) {
+// ChartContainer — Wrapper for chart components with loading/error states and fullscreen support
+export const ChartContainer = memo(function ChartContainer({ 
+  title, 
+  subtitle, 
+  children, 
+  loading, 
+  error, 
+  isEmpty, 
+  height = '400px', 
+  actions,
+  onFullscreen 
+}) {
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
-        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse" />
-        <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded mb-6 animate-pulse" />
-        <div className={`bg-gray-100 dark:bg-gray-900 rounded-lg animate-pulse`} style={{ height }} />
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 animate-fade-in">
+        <div className="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-2 animate-pulse skeleton-shimmer" />
+        <div className="h-4 w-64 bg-gray-200 dark:bg-gray-700 rounded mb-6 animate-pulse skeleton-shimmer" />
+        <div className={`bg-gray-100 dark:bg-gray-900 rounded-lg animate-pulse skeleton-shimmer`} style={{ height }} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-red-200 dark:border-red-800 shadow-sm p-6 animate-fade-in">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <span className="text-4xl mb-3">⚠️</span>
+          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-3">
+            <span className="text-4xl">⚠️</span>
+          </div>
           <p className="text-sm font-medium text-red-600 dark:text-red-400">Error loading chart</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{error}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm">{error}</p>
         </div>
       </div>
     );
@@ -605,10 +618,12 @@ export function ChartContainer({ title, subtitle, children, loading, error, isEm
 
   if (isEmpty) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-6 animate-fade-in">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
         <div className="flex flex-col items-center justify-center py-12 text-center">
-          <span className="text-4xl mb-3 opacity-30">📊</span>
+          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
+            <span className="text-4xl opacity-30">📊</span>
+          </div>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">No data available</p>
           <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Data will appear here once available</p>
         </div>
@@ -617,10 +632,10 @@ export function ChartContainer({ title, subtitle, children, loading, error, isEm
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 p-6 animate-fade-in group">
       <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
             {title}
           </h3>
           {subtitle && (
@@ -629,18 +644,32 @@ export function ChartContainer({ title, subtitle, children, loading, error, isEm
             </p>
           )}
         </div>
-        {actions && (
-          <div className="flex items-center gap-2">
-            {actions}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {onFullscreen && (
+            <button
+              onClick={onFullscreen}
+              className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+              aria-label="View fullscreen"
+              title="View fullscreen"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </button>
+          )}
+          {actions && (
+            <div className="flex items-center gap-2">
+              {actions}
+            </div>
+          )}
+        </div>
       </div>
-      <div style={{ height }}>
+      <div style={{ height }} className="transition-all duration-300">
         {children}
       </div>
     </div>
   );
-}
+});
 
 // FilterPanel — Dashboard filter controls
 export function FilterPanel({ filters, onFilterChange, onReset }) {
@@ -1332,6 +1361,244 @@ export function GlobalFilterPanel({ filters, onFilterChange, onReset, onApply })
     </div>
   );
 }
+
+// ===========================================================================
+// Presentation & Showcase Components
+// ===========================================================================
+
+// PresentationHeader — Executive-style dashboard header
+export const PresentationHeader = memo(function PresentationHeader({ title, subtitle, actions, stats }) {
+  return (
+    <div className="bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 rounded-2xl shadow-2xl p-8 mb-8 text-white animate-fade-in">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+              <span className="text-2xl">📊</span>
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{title || 'Supply Chain Analytics'}</h1>
+              <p className="text-blue-100 text-sm mt-1">{subtitle || 'Enterprise Intelligence Dashboard'}</p>
+            </div>
+          </div>
+          
+          {stats && (
+            <div className="flex flex-wrap gap-6 mt-6">
+              {stats.map((stat, idx) => (
+                <div key={idx} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
+                  <span className="text-2xl">{stat.icon}</span>
+                  <div>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="text-xs text-blue-100">{stat.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {actions && (
+          <div className="flex flex-col sm:flex-row gap-3">
+            {actions}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+// ExecutiveLandingSection — Hero section for dashboard
+export const ExecutiveLandingSection = memo(function ExecutiveLandingSection({ summary, loading }) {
+  const metrics = useMemo(() => {
+    if (!summary) return [];
+    
+    const slaTotal = (summary?.slaOnTime ?? 0) + (summary?.slaBreaches ?? 0);
+    const slaBreachPct = slaTotal > 0 
+      ? ((summary?.slaBreaches ?? 0) / slaTotal * 100).toFixed(1)
+      : '0.0';
+    
+    return [
+      {
+        icon: '📦',
+        value: summary.totalOrders?.toLocaleString() || '0',
+        label: 'Total Orders',
+        color: 'blue',
+      },
+      {
+        icon: '⚡',
+        value: summary.avgTotalTime ? `${Number(summary.avgTotalTime).toFixed(1)}d` : 'N/A',
+        label: 'Avg Cycle Time',
+        color: 'purple',
+      },
+      {
+        icon: '⚠️',
+        value: `${slaBreachPct}%`,
+        label: 'SLA Breach Rate',
+        color: 'red',
+      },
+      {
+        icon: '✅',
+        value: summary.slaOnTime?.toLocaleString() || '0',
+        label: 'On-Time Orders',
+        color: 'green',
+      },
+    ];
+  }, [summary]);
+
+  if (loading) {
+    return (
+      <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-8 mb-8 animate-pulse">
+        <div className="h-32" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50 dark:from-gray-800 dark:via-gray-850 dark:to-gray-900 rounded-2xl border border-blue-200 dark:border-gray-700 shadow-lg p-8 mb-8 animate-fade-in">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          Supply Chain Performance Overview
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400 text-lg">
+          Real-time operational intelligence and analytics
+        </p>
+      </div>
+      
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        {metrics.map((metric, idx) => (
+          <div
+            key={idx}
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-200 dark:border-gray-700"
+            style={{ animationDelay: `${idx * 100}ms` }}
+          >
+            <div className="flex flex-col items-center text-center gap-3">
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl bg-${metric.color}-100 dark:bg-${metric.color}-900/30`}>
+                {metric.icon}
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white tabular-nums">{metric.value}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">{metric.label}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+// AnalyticsSummaryCard — Compact summary card with trend
+export const AnalyticsSummaryCard = memo(function AnalyticsSummaryCard({ 
+  title, 
+  value, 
+  subtitle, 
+  icon, 
+  trend, 
+  trendValue, 
+  color = 'blue' 
+}) {
+  const colorClasses = {
+    blue: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400',
+    green: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-600 dark:text-green-400',
+    red: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400',
+    purple: 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-600 dark:text-purple-400',
+    amber: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-600 dark:text-amber-400',
+  };
+
+  return (
+    <div className={`rounded-xl border-2 p-5 ${colorClasses[color]} hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 animate-fade-in`}>
+      <div className="flex items-start justify-between mb-3">
+        <div className="text-3xl">{icon}</div>
+        {trend && (
+          <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
+            trend === 'up' ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-500/20 text-red-700 dark:text-red-400'
+          }`}>
+            {trend === 'up' ? '↑' : '↓'} {trendValue}
+          </div>
+        )}
+      </div>
+      <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1 tabular-nums">{value}</div>
+      <div className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{title}</div>
+      {subtitle && <div className="text-xs text-gray-600 dark:text-gray-400">{subtitle}</div>}
+    </div>
+  );
+});
+
+// ResponsiveAnalyticsGrid — Responsive grid for analytics cards
+export const ResponsiveAnalyticsGrid = memo(function ResponsiveAnalyticsGrid({ children, columns = 4 }) {
+  const gridClasses = {
+    2: 'grid-cols-1 sm:grid-cols-2',
+    3: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+    4: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+    5: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
+  };
+
+  return (
+    <div className={`grid ${gridClasses[columns]} gap-4 md:gap-6`}>
+      {children}
+    </div>
+  );
+});
+
+// FullscreenChartModal — Modal for fullscreen chart view
+export const FullscreenChartModal = memo(function FullscreenChartModal({ isOpen, onClose, title, children }) {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-7xl h-[90vh] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl flex flex-col animate-scale-in">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            aria-label="Close fullscreen view"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// DashboardSection — Reusable section wrapper
+export const DashboardSection = memo(function DashboardSection({ title, subtitle, actions, children, className = '' }) {
+  return (
+    <section className={`animate-fade-in ${className}`}>
+      {(title || actions) && (
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            {title && <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h2>}
+            {subtitle && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{subtitle}</p>}
+          </div>
+          {actions && <div className="flex items-center gap-3">{actions}</div>}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+});
 
 // ---------------------------------------------------------------------------
 // Analytics service — centralised API functions
@@ -3427,8 +3694,24 @@ export default function Dashboard() {
   });
 
   const [notification, setNotification] = useState(null);
+  const [presentationMode, setPresentationMode] = useState(false);
+  const [fullscreenChart, setFullscreenChart] = useState(null);
 
   const handleRetry = useCallback(() => setRetryKey((k) => k + 1), []);
+
+  // Toggle presentation mode
+  const togglePresentationMode = useCallback(() => {
+    setPresentationMode(prev => !prev);
+  }, []);
+
+  // Handle fullscreen chart view
+  const openFullscreenChart = useCallback((chartTitle, chartComponent) => {
+    setFullscreenChart({ title: chartTitle, component: chartComponent });
+  }, []);
+
+  const closeFullscreenChart = useCallback(() => {
+    setFullscreenChart(null);
+  }, []);
 
   // Save widget visibility to localStorage with error handling
   useEffect(() => {
@@ -3593,6 +3876,17 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Fullscreen Chart Modal */}
+      {fullscreenChart && (
+        <FullscreenChartModal
+          isOpen={!!fullscreenChart}
+          onClose={closeFullscreenChart}
+          title={fullscreenChart.title}
+        >
+          {fullscreenChart.component}
+        </FullscreenChartModal>
+      )}
+
       {/* Notifications */}
       {notification && (
         <Notification
@@ -3602,34 +3896,74 @@ export default function Dashboard() {
         />
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className={`${presentationMode ? 'max-w-full px-8' : 'max-w-7xl'} mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all duration-300`}>
 
-        {/* ── Page Header ── */}
-        <DashboardHeader />
-
-        {/* ── Executive Summary Banner ── */}
-        <div className="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Executive Summary</h2>
-              <p className="text-blue-100 text-sm">
-                Real-time analytics dashboard • Last updated: {lastUpdated}
-              </p>
+        {/* ── Presentation Header or Standard Header ── */}
+        {presentationMode ? (
+          <PresentationHeader
+            title="Supply Chain Analytics"
+            subtitle="Executive Intelligence Dashboard"
+            stats={summary ? [
+              { icon: '📦', value: summary.totalOrders?.toLocaleString() || '0', label: 'Total Orders' },
+              { icon: '⚡', value: summary.avgTotalTime ? `${Number(summary.avgTotalTime).toFixed(1)}d` : 'N/A', label: 'Avg Cycle' },
+              { icon: '✅', value: summary.slaOnTime?.toLocaleString() || '0', label: 'On-Time' },
+            ] : []}
+            actions={
+              <>
+                <button
+                  onClick={togglePresentationMode}
+                  className="px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-sm font-medium rounded-lg transition-all"
+                  aria-label="Exit presentation mode"
+                >
+                  Exit Presentation
+                </button>
+                <ReportExportButton type="csv" onExport={handleExportCSV} label="Export" />
+              </>
+            }
+          />
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <DashboardHeader />
+              <button
+                onClick={togglePresentationMode}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all hover:scale-105"
+                aria-label="Enter presentation mode"
+              >
+                📊 Presentation Mode
+              </button>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <ReportExportButton
-                type="csv"
-                onExport={handleExportCSV}
-                label="Export CSV"
-              />
-              <ReportExportButton
-                type="pdf"
-                onExport={handleExportPDF}
-                label="Export PDF"
-              />
+
+            {/* ── Executive Landing Section ── */}
+            <ExecutiveLandingSection summary={summary} loading={loading} />
+          </>
+        )}
+
+        {/* ── Export Banner (only in standard mode) ── */}
+        {!presentationMode && (
+          <div className="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Quick Actions</h2>
+                <p className="text-blue-100 text-sm">
+                  Export data and reports • Last updated: {lastUpdated}
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <ReportExportButton
+                  type="csv"
+                  onExport={handleExportCSV}
+                  label="Export CSV"
+                />
+                <ReportExportButton
+                  type="pdf"
+                  onExport={handleExportPDF}
+                  label="Export PDF"
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* ── Global Filter Panel ── */}
         <GlobalFilterPanel
