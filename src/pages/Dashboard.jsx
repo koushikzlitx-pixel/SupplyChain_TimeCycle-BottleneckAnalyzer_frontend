@@ -1600,6 +1600,155 @@ export const DashboardSection = memo(function DashboardSection({ title, subtitle
   );
 });
 
+// AnalyticsToolbar — Dashboard toolbar with refresh and controls
+export const AnalyticsToolbar = memo(function AnalyticsToolbar({ 
+  onRefresh, 
+  isRefreshing, 
+  lastUpdated, 
+  autoRefresh, 
+  onToggleAutoRefresh,
+  className = '' 
+}) {
+  const [timeAgo, setTimeAgo] = useState('');
+
+  useEffect(() => {
+    const updateTimeAgo = () => {
+      if (!lastUpdated) {
+        setTimeAgo('Never');
+        return;
+      }
+      
+      const seconds = Math.floor((new Date() - new Date(lastUpdated)) / 1000);
+      
+      if (seconds < 60) setTimeAgo('Just now');
+      else if (seconds < 3600) setTimeAgo(`${Math.floor(seconds / 60)}m ago`);
+      else if (seconds < 86400) setTimeAgo(`${Math.floor(seconds / 3600)}h ago`);
+      else setTimeAgo(`${Math.floor(seconds / 86400)}d ago`);
+    };
+
+    updateTimeAgo();
+    const interval = setInterval(updateTimeAgo, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [lastUpdated]);
+
+  return (
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 animate-fade-in ${className}`}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        {/* Left: Status */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {isRefreshing ? (
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+            ) : (
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+            )}
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {isRefreshing ? 'Refreshing...' : 'Live'}
+            </span>
+          </div>
+          <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            Updated {timeAgo}
+          </span>
+        </div>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-3">
+          {/* Auto-refresh toggle */}
+          <label className="flex items-center gap-2 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => onToggleAutoRefresh?.(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+              Auto-refresh
+            </span>
+          </label>
+
+          {/* Refresh button */}
+          <button
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium rounded-lg transition-all hover:scale-105 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-sm"
+            aria-label="Refresh analytics data"
+          >
+            <svg 
+              className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>{isRefreshing ? 'Refreshing' : 'Refresh'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// DataRefreshIndicator — Global loading indicator for data refresh
+export const DataRefreshIndicator = memo(function DataRefreshIndicator({ isVisible }) {
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed top-20 right-6 z-40 animate-slide-down">
+      <div className="bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 backdrop-blur-sm">
+        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm font-medium">Refreshing analytics...</span>
+      </div>
+    </div>
+  );
+});
+
+// AnalyticsWidget — Enhanced dashboard widget with more controls
+export const AnalyticsWidget = memo(function AnalyticsWidget({ 
+  id, 
+  title, 
+  children, 
+  onRemove, 
+  onToggle, 
+  visible = true,
+  collapsible = false,
+  icon
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  if (!visible) return null;
+
+  return (
+    <div className="animate-fade-in">
+      {collapsible && (
+        <div className="flex items-center justify-between mb-3 px-1">
+          <div className="flex items-center gap-2">
+            {icon && <span className="text-lg">{icon}</span>}
+            {title && <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{title}</h3>}
+          </div>
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            aria-label={isCollapsed ? 'Expand' : 'Collapse'}
+          >
+            <svg 
+              className={`w-4 h-4 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {!isCollapsed && children}
+    </div>
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Analytics service — centralised API functions
 // ---------------------------------------------------------------------------
@@ -3696,6 +3845,9 @@ export default function Dashboard() {
   const [notification, setNotification] = useState(null);
   const [presentationMode, setPresentationMode] = useState(false);
   const [fullscreenChart, setFullscreenChart] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRetry = useCallback(() => setRetryKey((k) => k + 1), []);
 
@@ -3729,27 +3881,75 @@ export default function Dashboard() {
   // Fetch summary analytics with cleanup
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const initialLoad = !summary; // Track if it's initial load or refresh
+    
+    if (initialLoad) {
+      setLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
     setError(null);
 
     getSummaryAnalytics()
       .then((data) => {
         if (!cancelled) {
           setSummary(data);
-          setLoading(false);
+          setLastUpdated(new Date());
+          if (initialLoad) {
+            setLoading(false);
+          } else {
+            setIsRefreshing(false);
+          }
         }
       })
       .catch((err) => {
         if (!cancelled) {
           setError(err.message || 'An unexpected error occurred.');
-          setLoading(false);
+          if (initialLoad) {
+            setLoading(false);
+          } else {
+            setIsRefreshing(false);
+          }
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [retryKey]);
+  }, [retryKey, summary]);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      setRetryKey((k) => k + 1);
+    }, AUTO_REFRESH_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh]);
+
+  // Handle manual refresh
+  const handleRefresh = useCallback(() => {
+    setRetryKey((k) => k + 1);
+  }, []);
+
+  // Toggle auto-refresh
+  const handleToggleAutoRefresh = useCallback((enabled) => {
+    setAutoRefresh(enabled);
+    if (enabled) {
+      setNotification({
+        type: 'success',
+        message: 'Auto-refresh enabled (every 5 minutes)',
+      });
+    } else {
+      setNotification({
+        type: 'info',
+        message: 'Auto-refresh disabled',
+      });
+    }
+    setTimeout(() => setNotification(null), 3000);
+  }, []);
 
   // Memoized SLA calculations
   const slaMetrics = useMemo(() => {
@@ -3887,6 +4087,22 @@ export default function Dashboard() {
         </FullscreenChartModal>
       )}
 
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Data Refresh Indicator */}
+      <DataRefreshIndicator isVisible={isRefreshing} />
+
+      {/* Fullscreen Chart Modal */}
+      {fullscreenChart && (
+        <FullscreenChartModal
+          isOpen={!!fullscreenChart}
+          onClose={closeFullscreenChart}
+          title={fullscreenChart.title}
+        >
+          {fullscreenChart.component}
+        </FullscreenChartModal>
+      )}
+
       {/* Notifications */}
       {notification && (
         <Notification
@@ -3923,7 +4139,7 @@ export default function Dashboard() {
           />
         ) : (
           <>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
               <DashboardHeader />
               <button
                 onClick={togglePresentationMode}
@@ -3933,6 +4149,16 @@ export default function Dashboard() {
                 📊 Presentation Mode
               </button>
             </div>
+
+            {/* ── Analytics Toolbar ── */}
+            <AnalyticsToolbar
+              onRefresh={handleRefresh}
+              isRefreshing={isRefreshing}
+              lastUpdated={lastUpdated}
+              autoRefresh={autoRefresh}
+              onToggleAutoRefresh={handleToggleAutoRefresh}
+              className="mb-6"
+            />
 
             {/* ── Executive Landing Section ── */}
             <ExecutiveLandingSection summary={summary} loading={loading} />
