@@ -79,6 +79,20 @@
 - **ResponsiveDashboardLayout**: Responsive grid wrapper
 - **EnhancedFilterToolbar**: Advanced filtering controls
 - **AnalyticsActionToolbar**: Quick action buttons
+- **TableauContainer**: Tableau dashboard embedding
+- **DashboardSectionHeader**: Section headers with actions
+- **AnalyticsInsightCard**: Individual insight cards
+- **AnalyticsSummaryPanel**: Comprehensive analytics panel
+- **DashboardInfoCard**: Statistics cards
+- **FullscreenDashboardModal**: Fullscreen dashboard view
+
+### Tableau Integration
+- **Embedded Dashboards**: Native Tableau dashboard integration
+- **Responsive Containers**: Adaptive Tableau visualization sizing
+- **Fullscreen Support**: Dedicated fullscreen analytics experience
+- **Loading States**: Intelligent loading and error handling
+- **Environment Config**: Flexible Tableau URL configuration
+- **Analytics Storytelling**: Rich insights around visualizations
 
 ## 📋 Prerequisites
 
@@ -100,16 +114,33 @@ npm install
 
 ## ⚙️ Configuration
 
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory (use `.env.example` as template):
 
 ```env
 # API Configuration
 VITE_API_BASE_URL=http://localhost:8000
 
+# Tableau Configuration (Optional)
+# Set VITE_TABLEAU_ENABLED=true to enable Tableau dashboard integration
+VITE_TABLEAU_ENABLED=false
+VITE_TABLEAU_SERVER_URL=https://public.tableau.com
+VITE_TABLEAU_VIEW_URL=https://public.tableau.com/views/SupplyChainAnalytics/Dashboard1
+
 # Optional: Other environment variables
 # VITE_API_TIMEOUT=15000
 # VITE_AUTO_REFRESH_INTERVAL=300000
 ```
+
+### Tableau Integration Setup
+
+To enable Tableau dashboards:
+
+1. Set `VITE_TABLEAU_ENABLED=true` in your `.env` file
+2. Configure `VITE_TABLEAU_SERVER_URL` with your Tableau server URL
+3. Set `VITE_TABLEAU_VIEW_URL` to your specific dashboard view URL
+4. Restart the development server
+
+**Note**: Tableau Public dashboards work out of the box. For Tableau Server, ensure proper CORS configuration.
 
 ## 🚀 Development
 

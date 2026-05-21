@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
-import Dashboard, { Orders, OrderDetails, ThemeProvider, Sidebar, Navbar, ScrollToTop, NotificationProvider, ErrorBoundary } from './pages/Dashboard';
+import Dashboard, { Orders, OrderDetails, TableauDashboard, ThemeProvider, Sidebar, Navbar, ScrollToTop, NotificationProvider, ErrorBoundary } from './pages/Dashboard';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -59,6 +59,7 @@ function App() {
                   <Route path="/orders" element={<Orders />} />
                   <Route path="/orders/:orderId" element={<OrderDetailsWrapper />} />
                   <Route path="/analytics" element={<Dashboard />} />
+                  <Route path="/tableau" element={<TableauDashboard />} />
                 </Routes>
               </main>
 

@@ -26,6 +26,13 @@ const API_TIMEOUT = 15000;
 const AUTO_REFRESH_INTERVAL = 300000; // 5 minutes
 const CACHE_DURATION = 60000; // 1 minute
 
+// Tableau Configuration
+const TABLEAU_CONFIG = {
+  serverUrl: import.meta.env.VITE_TABLEAU_SERVER_URL || 'https://public.tableau.com',
+  viewUrl: import.meta.env.VITE_TABLEAU_VIEW_URL || 'https://public.tableau.com/views/SupplyChainAnalytics/Dashboard1',
+  enabled: import.meta.env.VITE_TABLEAU_ENABLED === 'true' || false,
+};
+
 const CHART_COLORS = {
   primary: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'],
   success: '#10b981',
@@ -236,6 +243,7 @@ export const Sidebar = memo(function Sidebar({ isOpen, onClose }) {
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/orders', label: 'Orders', icon: '📦' },
     { path: '/analytics', label: 'Analytics', icon: '📈' },
+    { path: '/tableau', label: 'Tableau Insights', icon: '📉', badge: 'NEW' },
   ], []);
 
   const isActive = useCallback((path) => location.pathname === path, [location.pathname]);
@@ -294,7 +302,7 @@ export const Sidebar = memo(function Sidebar({ isOpen, onClose }) {
               className={`
                 w-full flex items-center gap-3 px-4 py-3 rounded-xl
                 text-sm font-medium transition-all duration-200 group
-                animate-slide-down
+                animate-slide-down relative
                 ${
                   isActive(item.path)
                     ? 'bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/30 text-blue-700 dark:text-blue-300 shadow-md border-l-4 border-blue-600'
@@ -308,7 +316,12 @@ export const Sidebar = memo(function Sidebar({ isOpen, onClose }) {
                 {item.icon}
               </span>
               <span className="font-semibold">{item.label}</span>
-              {isActive(item.path) && (
+              {item.badge && (
+                <span className="ml-auto px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-full animate-pulse-slow">
+                  {item.badge}
+                </span>
+              )}
+              {isActive(item.path) && !item.badge && (
                 <span className="ml-auto">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -2343,6 +2356,360 @@ export const AnalyticsActionToolbar = memo(function AnalyticsActionToolbar({
           </svg>
         </button>
       )}
+    </div>
+  );
+});
+
+// TableauContainer — Responsive Tableau dashboard embedding
+export const TableauContainer = memo(function TableauContainer({ 
+  viewUrl = TABLEAU_CONFIG.viewUrl,
+  title = 'Tableau Analytics Dashboard',
+  loading: externalLoading = false,
+  onLoad,
+  onError,
+  height = '800px',
+  allowFullscreen = true
+}) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const { theme } = useTheme();
+
+  const handleLoad = useCallback(() => {
+    setLoading(false);
+    onLoad?.();
+  }, [onLoad]);
+
+  const handleError = useCallback((err) => {
+    setError('Failed to load Tableau dashboard');
+    setLoading(false);
+    onError?.(err);
+  }, [onError]);
+
+  if (!TABLEAU_CONFIG.enabled) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-lg border border-gray-200 dark:border-gray-700 text-center">
+        <div className="text-6xl mb-4">📊</div>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+          Tableau Integration Disabled
+        </h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">
+          Set VITE_TABLEAU_ENABLED=true in your environment to enable Tableau dashboards
+        </p>
+        <div className="text-sm text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-lg p-4 font-mono">
+          VITE_TABLEAU_SERVER_URL=https://public.tableau.com<br />
+          VITE_TABLEAU_VIEW_URL=https://public.tableau.com/views/...<br />
+          VITE_TABLEAU_ENABLED=true
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden animate-fade-in">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-850">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📊</span>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1 text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full">
+              Live Dashboard
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {(loading || externalLoading) && (
+        <div className="absolute inset-0 bg-white dark:bg-gray-800 flex items-center justify-center z-10">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400 font-medium">Loading Tableau Dashboard...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="p-8 text-center">
+          <div className="text-6xl mb-4">⚠️</div>
+          <h3 className="text-xl font-bold text-red-600 dark:text-red-400 mb-2">Dashboard Load Error</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <button
+            onClick={() => { setError(null); setLoading(true); }}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Tableau Iframe */}
+      {!error && (
+        <div className="relative" style={{ height }}>
+          <iframe
+            src={viewUrl}
+            className="w-full h-full border-0"
+            onLoad={handleLoad}
+            onError={handleError}
+            allow="fullscreen"
+            allowFullScreen={allowFullscreen}
+            title={title}
+          />
+        </div>
+      )}
+    </div>
+  );
+});
+
+// DashboardSectionHeader — Reusable section header with description
+export const DashboardSectionHeader = memo(function DashboardSectionHeader({ 
+  title, 
+  subtitle, 
+  icon, 
+  actions,
+  className = '' 
+}) {
+  return (
+    <div className={`mb-6 ${className}`}>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-start gap-3">
+          {icon && <span className="text-3xl">{icon}</span>}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+              {title}
+            </h2>
+            {subtitle && (
+              <p className="text-gray-600 dark:text-gray-400 text-sm">
+                {subtitle}
+              </p>
+            )}
+          </div>
+        </div>
+        {actions && (
+          <div className="flex items-center gap-2">
+            {actions}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+// AnalyticsInsightCard — Individual insight card with icon and description
+export const AnalyticsInsightCard = memo(function AnalyticsInsightCard({ 
+  title, 
+  description, 
+  value,
+  icon, 
+  color = 'blue',
+  trend,
+  onClick 
+}) {
+  const colorClasses = {
+    blue: 'from-blue-500 to-blue-600',
+    green: 'from-green-500 to-green-600',
+    red: 'from-red-500 to-red-600',
+    purple: 'from-purple-500 to-purple-600',
+    amber: 'from-amber-500 to-amber-600',
+    indigo: 'from-indigo-500 to-indigo-600',
+  };
+
+  return (
+    <div
+      onClick={onClick}
+      className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 dark:border-gray-700 ${
+        onClick ? 'cursor-pointer transform hover:scale-105' : ''
+      } animate-fade-in`}
+    >
+      <div className="flex items-start gap-4">
+        <div className={`p-4 rounded-xl bg-gradient-to-br ${colorClasses[color]} text-white shadow-lg`}>
+          <span className="text-3xl">{icon}</span>
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+            {title}
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            {description}
+          </p>
+          {value && (
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                {value}
+              </span>
+              {trend && (
+                <span className={`text-sm font-semibold ${
+                  trend.type === 'up' ? 'text-green-600' : trend.type === 'down' ? 'text-red-600' : 'text-gray-600'
+                }`}>
+                  {trend.type === 'up' ? '↑' : trend.type === 'down' ? '↓' : '→'} {trend.value}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// AnalyticsSummaryPanel — Comprehensive analytics summary with multiple metrics
+export const AnalyticsSummaryPanel = memo(function AnalyticsSummaryPanel({ 
+  title = 'Analytics Summary',
+  metrics = [],
+  insights = [],
+  loading = false
+}) {
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-6">
+        <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded skeleton-shimmer mb-4" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-100 dark:bg-gray-700 rounded-lg skeleton-shimmer" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-850 rounded-xl p-6 shadow-lg mb-6 border border-gray-200 dark:border-gray-700 animate-fade-in">
+      <DashboardSectionHeader
+        title={title}
+        icon="📊"
+        subtitle="Comprehensive analytics overview and key insights"
+      />
+
+      {/* Metrics Grid */}
+      {metrics.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          {metrics.map((metric, index) => (
+            <div
+              key={index}
+              className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">{metric.icon}</span>
+                <h4 className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  {metric.label}
+                </h4>
+              </div>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                {metric.value}
+              </p>
+              {metric.description && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {metric.description}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Insights Section */}
+      {insights.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3">
+            Key Insights
+          </h3>
+          {insights.map((insight, index) => (
+            <div
+              key={index}
+              className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+            >
+              <span className="text-xl">{insight.icon || '💡'}</span>
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+                  {insight.title}
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {insight.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
+// DashboardInfoCard — Information card with statistics
+export const DashboardInfoCard = memo(function DashboardInfoCard({ 
+  title, 
+  stats = [],
+  description,
+  color = 'blue'
+}) {
+  const colorClasses = {
+    blue: 'from-blue-500 to-blue-600',
+    green: 'from-green-500 to-green-600',
+    purple: 'from-purple-500 to-purple-600',
+    amber: 'from-amber-500 to-amber-600',
+  };
+
+  return (
+    <div className={`bg-gradient-to-br ${colorClasses[color]} rounded-xl p-6 text-white shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105 animate-fade-in`}>
+      <h3 className="text-xl font-bold mb-4">{title}</h3>
+      {description && (
+        <p className="text-white/90 text-sm mb-4">{description}</p>
+      )}
+      <div className="grid grid-cols-2 gap-4">
+        {stats.map((stat, index) => (
+          <div key={index} className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+            <p className="text-white/80 text-xs mb-1">{stat.label}</p>
+            <p className="text-2xl font-bold">{stat.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+// FullscreenDashboardModal — Fullscreen modal for dashboards
+export const FullscreenDashboardModal = memo(function FullscreenDashboardModal({ 
+  isOpen, 
+  onClose, 
+  title,
+  children 
+}) {
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-gray-900 animate-fade-in">
+      {/* Header */}
+      <div className="sticky top-0 bg-gray-900 border-b border-gray-700 px-6 py-4 flex items-center justify-between z-10">
+        <h2 className="text-xl font-bold text-white">{title}</h2>
+        <button
+          onClick={onClose}
+          className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+          aria-label="Exit fullscreen"
+        >
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      {/* Content */}
+      <div className="h-[calc(100vh-73px)] overflow-auto p-6">
+        {children}
+      </div>
     </div>
   );
 });
@@ -5169,6 +5536,214 @@ function OrdersTableSkeleton() {
           <div className="h-4 bg-gray-100 rounded-full w-32" />
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tableau Dashboard Page
+// ---------------------------------------------------------------------------
+
+export function TableauDashboard() {
+  const [fullscreen, setFullscreen] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const { theme } = useTheme();
+
+  // Sample analytics insights
+  const insights = [
+    {
+      icon: '🎯',
+      title: 'Performance Optimization',
+      description: 'Current SLA breach rate is 18%, down 5% from last month. Focus on procurement stage for further improvement.',
+    },
+    {
+      icon: '⚡',
+      title: 'Processing Efficiency',
+      description: 'Average cycle time reduced to 6.2 days. Manufacturing stage shows consistent performance improvement.',
+    },
+    {
+      icon: '🔍',
+      title: 'Bottleneck Analysis',
+      description: 'Procurement remains the primary bottleneck affecting 42% of orders. Consider increasing supplier capacity.',
+    },
+    {
+      icon: '📈',
+      title: 'Volume Trends',
+      description: 'Order volume increased 15% this quarter. Capacity planning recommended for Q3.',
+    },
+  ];
+
+  const summaryMetrics = [
+    { icon: '📦', label: 'Total Orders', value: '1,247', description: 'Last 30 days' },
+    { icon: '⚡', label: 'Avg Cycle Time', value: '6.2d', description: 'End-to-end' },
+    { icon: '✅', label: 'On-Time Rate', value: '82%', description: 'SLA compliance' },
+    { icon: '🔥', label: 'Active Orders', value: '328', description: 'In progress' },
+    { icon: '📊', label: 'Bottlenecks', value: '156', description: 'Require attention' },
+    { icon: '🎯', label: 'Efficiency', value: '89%', description: 'Overall score' },
+  ];
+
+  const kpiExplanations = [
+    {
+      title: 'SLA Breach Analysis',
+      description: 'Orders exceeding defined service level agreements based on stage-specific time thresholds.',
+      value: '18%',
+      icon: '⚠️',
+      color: 'red',
+      trend: { type: 'down', value: '5%' },
+    },
+    {
+      title: 'Cycle Time Performance',
+      description: 'Average time from order creation to delivery completion across all stages.',
+      value: '6.2 days',
+      icon: '⏱️',
+      color: 'blue',
+      trend: { type: 'down', value: '0.8d' },
+    },
+    {
+      title: 'Bottleneck Impact',
+      description: 'Orders experiencing delays at critical stages requiring intervention.',
+      value: '42%',
+      icon: '🔍',
+      color: 'amber',
+      trend: { type: 'neutral', value: '2%' },
+    },
+    {
+      title: 'Order Throughput',
+      description: 'Daily order processing capacity and completion rate.',
+      value: '41.5/day',
+      icon: '📦',
+      color: 'green',
+      trend: { type: 'up', value: '12%' },
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Page Header */}
+        <DashboardSectionHeader
+          title="Tableau Analytics Insights"
+          subtitle="Interactive dashboards powered by Tableau for comprehensive supply chain analysis"
+          icon="📊"
+          actions={
+            <button
+              onClick={() => setFullscreen(true)}
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+              Fullscreen
+            </button>
+          }
+        />
+
+        {/* Analytics Summary Panel */}
+        <AnalyticsSummaryPanel
+          title="Analytics Overview"
+          metrics={summaryMetrics}
+          insights={insights}
+        />
+
+        {/* KPI Explanation Cards */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span>📈</span>
+            <span>Key Performance Indicators</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {kpiExplanations.map((kpi, index) => (
+              <AnalyticsInsightCard
+                key={index}
+                title={kpi.title}
+                description={kpi.description}
+                value={kpi.value}
+                icon={kpi.icon}
+                color={kpi.color}
+                trend={kpi.trend}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Workflow Efficiency Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <DashboardInfoCard
+            title="Workflow Efficiency"
+            color="blue"
+            description="Real-time workflow performance metrics"
+            stats={[
+              { label: 'Processing Rate', value: '94%' },
+              { label: 'Queue Time', value: '1.2h' },
+              { label: 'Stage Success', value: '89%' },
+              { label: 'Utilization', value: '76%' },
+            ]}
+          />
+          <DashboardInfoCard
+            title="Bottleneck Intelligence"
+            color="purple"
+            description="Critical bottleneck analysis and impact"
+            stats={[
+              { label: 'Critical Stages', value: '3' },
+              { label: 'Affected Orders', value: '156' },
+              { label: 'Avg Delay', value: '2.3d' },
+              { label: 'Resolution', value: '68%' },
+            ]}
+          />
+        </div>
+
+        {/* Tableau Dashboard Container */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span>📉</span>
+            <span>Interactive Tableau Dashboard</span>
+          </h2>
+          <TableauContainer
+            title="Supply Chain Analytics Dashboard"
+            viewUrl={TABLEAU_CONFIG.viewUrl}
+            height="900px"
+            loading={dashboardLoading}
+            onLoad={() => setDashboardLoading(false)}
+            onError={(err) => console.error('Tableau load error:', err)}
+          />
+        </div>
+
+        {/* Additional Insights */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-8 text-white shadow-xl">
+          <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <span>💡</span>
+            <span>Executive Insights</span>
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <h4 className="font-semibold mb-2">Strategic Recommendation</h4>
+              <p className="text-white/90 text-sm">
+                Increase procurement capacity by 20% to reduce bottleneck impact and improve overall cycle time by estimated 15%.
+              </p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+              <h4 className="font-semibold mb-2">Operational Focus</h4>
+              <p className="text-white/90 text-sm">
+                Prioritize manufacturing and quality control stages which show consistent performance and can handle increased volume.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Fullscreen Modal */}
+      <FullscreenDashboardModal
+        isOpen={fullscreen}
+        onClose={() => setFullscreen(false)}
+        title="Tableau Analytics Dashboard - Fullscreen"
+      >
+        <TableauContainer
+          title="Supply Chain Analytics Dashboard"
+          viewUrl={TABLEAU_CONFIG.viewUrl}
+          height="calc(100vh - 140px)"
+        />
+      </FullscreenDashboardModal>
     </div>
   );
 }
