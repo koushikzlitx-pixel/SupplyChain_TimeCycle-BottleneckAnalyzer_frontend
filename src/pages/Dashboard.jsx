@@ -2714,6 +2714,349 @@ export const FullscreenDashboardModal = memo(function FullscreenDashboardModal({
   );
 });
 
+// EmptyAnalyticsState — Reusable empty state for analytics sections
+export const EmptyAnalyticsState = memo(function EmptyAnalyticsState({ 
+  icon = '📊',
+  title = 'No Data Available',
+  description = 'Data will appear once available',
+  action,
+  actionLabel = 'Refresh'
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 px-4 text-center animate-fade-in">
+      <div className="text-8xl mb-6 opacity-20 animate-pulse-slow">{icon}</div>
+      <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+        {title}
+      </h3>
+      <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
+        {description}
+      </p>
+      {action && (
+        <button
+          onClick={action}
+          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+});
+
+// LoadingSkeletonCard — Reusable loading skeleton for cards
+export const LoadingSkeletonCard = memo(function LoadingSkeletonCard({ count = 1, height = 'h-40' }) {
+  return (
+    <>
+      {[...Array(count)].map((_, index) => (
+        <div
+          key={index}
+          className={`bg-white dark:bg-gray-800 rounded-xl ${height} shadow-lg border border-gray-200 dark:border-gray-700 skeleton-shimmer animate-fade-in`}
+          style={{ animationDelay: `${index * 100}ms` }}
+        />
+      ))}
+    </>
+  );
+});
+
+// AnalyticsRecommendationCard — Strategic recommendation cards
+export const AnalyticsRecommendationCard = memo(function AnalyticsRecommendationCard({ 
+  title,
+  description,
+  priority = 'medium', // high, medium, low
+  impact,
+  icon = '💡',
+  actionable = true
+}) {
+  const priorityStyles = {
+    high: 'border-red-500 bg-red-50 dark:bg-red-900/20',
+    medium: 'border-amber-500 bg-amber-50 dark:bg-amber-900/20',
+    low: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20',
+  };
+
+  const priorityBadges = {
+    high: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    medium: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+    low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+  };
+
+  return (
+    <div className={`rounded-xl p-6 border-2 ${priorityStyles[priority]} transition-all duration-300 hover:shadow-xl animate-fade-in`}>
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <span className="text-4xl">{icon}</span>
+          <div>
+            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
+              {title}
+            </h4>
+            <span className={`text-xs font-semibold px-3 py-1 rounded-full ${priorityBadges[priority]}`}>
+              {priority.toUpperCase()} PRIORITY
+            </span>
+          </div>
+        </div>
+      </div>
+      <p className="text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
+        {description}
+      </p>
+      {impact && (
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 mb-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
+            Expected Impact:
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {impact}
+          </p>
+        </div>
+      )}
+      {actionable && (
+        <button className="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1 transition-colors">
+          Take Action
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+});
+
+// StagePerformanceCard — Individual stage performance visualization
+export const StagePerformanceCard = memo(function StagePerformanceCard({ 
+  stageName,
+  avgDuration,
+  orders,
+  efficiency,
+  status = 'normal', // excellent, normal, warning, critical
+  icon = '⚙️'
+}) {
+  const statusStyles = {
+    excellent: 'border-green-500 bg-green-50 dark:bg-green-900/20',
+    normal: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20',
+    warning: 'border-amber-500 bg-amber-50 dark:bg-amber-900/20',
+    critical: 'border-red-500 bg-red-50 dark:bg-red-900/20',
+  };
+
+  const statusIcons = {
+    excellent: '✅',
+    normal: '🔵',
+    warning: '⚠️',
+    critical: '🔴',
+  };
+
+  return (
+    <div className={`rounded-xl p-5 border-2 ${statusStyles[status]} hover:shadow-lg transition-all duration-300 animate-fade-in`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{icon}</span>
+          <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+            {stageName}
+          </h4>
+        </div>
+        <span className="text-2xl">{statusIcons[status]}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 text-center">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Avg Duration</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">{avgDuration}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 text-center">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Orders</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">{orders}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 text-center">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Efficiency</p>
+          <p className="text-lg font-bold text-gray-900 dark:text-white">{efficiency}%</p>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// BottleneckSummaryCard — Bottleneck analysis summary
+export const BottleneckSummaryCard = memo(function BottleneckSummaryCard({ 
+  stageName,
+  affectedOrders,
+  avgDelay,
+  impactPercentage,
+  recommendation
+}) {
+  return (
+    <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-xl p-6 border-2 border-red-200 dark:border-red-800 hover:shadow-xl transition-all duration-300 animate-fade-in">
+      <div className="flex items-start gap-4 mb-4">
+        <div className="p-3 bg-red-500 rounded-xl text-white shadow-lg">
+          <span className="text-3xl">🔍</span>
+        </div>
+        <div className="flex-1">
+          <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            {stageName} Bottleneck
+          </h4>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Critical attention required
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Affected</p>
+          <p className="text-xl font-bold text-red-600 dark:text-red-400">{affectedOrders}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Avg Delay</p>
+          <p className="text-xl font-bold text-red-600 dark:text-red-400">{avgDelay}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Impact</p>
+          <p className="text-xl font-bold text-red-600 dark:text-red-400">{impactPercentage}%</p>
+        </div>
+      </div>
+      {recommendation && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border-l-4 border-amber-500">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+            💡 Recommendation:
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {recommendation}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// SLABreachSummaryCard — SLA breach analysis summary
+export const SLABreachSummaryCard = memo(function SLABreachSummaryCard({ 
+  breachCount,
+  breachRate,
+  totalOrders,
+  trend,
+  criticalBreaches,
+  recentBreaches
+}) {
+  return (
+    <div className="bg-gradient-to-br from-amber-50 to-red-50 dark:from-amber-900/20 dark:to-red-900/20 rounded-xl p-6 border-2 border-amber-200 dark:border-amber-800 hover:shadow-xl transition-all duration-300 animate-fade-in">
+      <div className="flex items-start gap-4 mb-4">
+        <div className="p-3 bg-amber-500 rounded-xl text-white shadow-lg">
+          <span className="text-3xl">⚠️</span>
+        </div>
+        <div className="flex-1">
+          <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            SLA Breach Analysis
+          </h4>
+          <div className="flex items-center gap-2">
+            <span className="text-3xl font-bold text-amber-600 dark:text-amber-400">
+              {breachRate}%
+            </span>
+            {trend && (
+              <span className={`text-sm font-semibold flex items-center gap-1 ${
+                trend.direction === 'down' ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {trend.direction === 'down' ? '↓' : '↑'} {trend.value}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Total Breaches</p>
+          <p className="text-xl font-bold text-gray-900 dark:text-white">{breachCount}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-500">of {totalOrders} orders</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Critical</p>
+          <p className="text-xl font-bold text-red-600 dark:text-red-400">{criticalBreaches}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-500">urgent attention</p>
+        </div>
+      </div>
+      {recentBreaches && recentBreaches.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+            Recent Breaches:
+          </p>
+          <div className="space-y-1">
+            {recentBreaches.slice(0, 3).map((breach, index) => (
+              <div key={index} className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-2">
+                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                {breach}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// WorkflowEfficiencyPanel — Comprehensive workflow efficiency display
+export const WorkflowEfficiencyPanel = memo(function WorkflowEfficiencyPanel({ 
+  overallEfficiency,
+  stages = [],
+  bottlenecks = [],
+  recommendations = []
+}) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 animate-fade-in">
+      <DashboardSectionHeader
+        title="Workflow Efficiency Analysis"
+        subtitle="Comprehensive supply chain workflow performance metrics"
+        icon="⚡"
+      />
+
+      {/* Overall Efficiency */}
+      <div className="mb-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm opacity-90 mb-1">Overall Workflow Efficiency</p>
+            <p className="text-5xl font-bold">{overallEfficiency}%</p>
+          </div>
+          <div className="text-6xl">⚡</div>
+        </div>
+      </div>
+
+      {/* Stage Performance */}
+      {stages.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+            Stage Performance
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {stages.map((stage, index) => (
+              <StagePerformanceCard key={index} {...stage} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bottlenecks */}
+      {bottlenecks.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+            Critical Bottlenecks
+          </h3>
+          <div className="space-y-4">
+            {bottlenecks.map((bottleneck, index) => (
+              <BottleneckSummaryCard key={index} {...bottleneck} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recommendations */}
+      {recommendations.length > 0 && (
+        <div>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
+            Strategic Recommendations
+          </h3>
+          <div className="grid grid-cols-1 gap-4">
+            {recommendations.map((rec, index) => (
+              <AnalyticsRecommendationCard key={index} {...rec} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Analytics service — centralised API functions
 // ---------------------------------------------------------------------------
@@ -5617,6 +5960,64 @@ export function TableauDashboard() {
     },
   ];
 
+  // Stage performance data
+  const stagePerformance = [
+    { stageName: 'Procurement', avgDuration: '1.8d', orders: 1247, efficiency: 92, status: 'excellent', icon: '📋' },
+    { stageName: 'Manufacturing', avgDuration: '2.1d', orders: 1180, efficiency: 88, status: 'normal', icon: '🏭' },
+    { stageName: 'Quality Control', avgDuration: '0.9d', orders: 1150, efficiency: 94, status: 'excellent', icon: '✅' },
+    { stageName: 'Packaging', avgDuration: '0.7d', orders: 1145, efficiency: 96, status: 'excellent', icon: '📦' },
+    { stageName: 'Delivery', avgDuration: '1.3d', orders: 1098, efficiency: 85, status: 'warning', icon: '🚚' },
+  ];
+
+  // Bottleneck data
+  const bottlenecks = [
+    {
+      stageName: 'Procurement',
+      affectedOrders: 524,
+      avgDelay: '2.3d',
+      impactPercentage: 42,
+      recommendation: 'Increase supplier capacity by 20% and implement parallel procurement for high-priority orders.',
+    },
+  ];
+
+  // SLA breach data
+  const slaBreachData = {
+    breachCount: 224,
+    breachRate: 18,
+    totalOrders: 1247,
+    trend: { direction: 'down', value: '5%' },
+    criticalBreaches: 45,
+    recentBreaches: ['Order #1234 - Procurement delay', 'Order #1235 - Manufacturing delay', 'Order #1236 - Delivery delay'],
+  };
+
+  // Strategic recommendations
+  const recommendations = [
+    {
+      title: 'Procurement Capacity Expansion',
+      description: 'Increase procurement team capacity by 20% to handle growing order volume and reduce bottleneck impact.',
+      priority: 'high',
+      impact: 'Expected 15% reduction in cycle time and 30% decrease in procurement bottlenecks.',
+      icon: '📈',
+      actionable: true,
+    },
+    {
+      title: 'Manufacturing Process Optimization',
+      description: 'Implement lean manufacturing principles and automation in key manufacturing stages.',
+      priority: 'medium',
+      impact: 'Projected 10% efficiency improvement and 0.5 day reduction in manufacturing time.',
+      icon: '⚙️',
+      actionable: true,
+    },
+    {
+      title: 'Quality Control Streamlining',
+      description: 'Maintain current excellence in quality control while exploring parallel inspection processes.',
+      priority: 'low',
+      impact: 'Maintain 94% efficiency while increasing throughput capacity by 15%.',
+      icon: '✅',
+      actionable: true,
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -5630,6 +6031,7 @@ export function TableauDashboard() {
             <button
               onClick={() => setFullscreen(true)}
               className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+              aria-label="Open dashboard in fullscreen mode"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -5667,6 +6069,68 @@ export function TableauDashboard() {
           </div>
         </div>
 
+        {/* Stage Performance */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span>⚙️</span>
+            <span>Stage Performance Highlights</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {stagePerformance.map((stage, index) => (
+              <StagePerformanceCard key={index} {...stage} />
+            ))}
+          </div>
+        </div>
+
+        {/* Bottleneck and SLA Analysis */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <span>🔍</span>
+              <span>Bottleneck Analysis</span>
+            </h2>
+            {bottlenecks.map((bottleneck, index) => (
+              <BottleneckSummaryCard key={index} {...bottleneck} />
+            ))}
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <span>⚠️</span>
+              <span>SLA Breach Summary</span>
+            </h2>
+            <SLABreachSummaryCard {...slaBreachData} />
+          </div>
+        </div>
+
+        {/* Strategic Recommendations */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span>💡</span>
+            <span>Strategic Recommendations</span>
+          </h2>
+          <div className="grid grid-cols-1 gap-4">
+            {recommendations.map((rec, index) => (
+              <AnalyticsRecommendationCard key={index} {...rec} />
+            ))}
+          </div>
+        </div>
+
+        {/* Tableau Dashboard Container */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+            <span>📉</span>
+            <span>Interactive Tableau Dashboard</span>
+          </h2>
+          <TableauContainer
+            title="Supply Chain Analytics Dashboard"
+            viewUrl={TABLEAU_CONFIG.viewUrl}
+            height="900px"
+            loading={dashboardLoading}
+            onLoad={() => setDashboardLoading(false)}
+            onError={(err) => console.error('Tableau load error:', err)}
+          />
+        </div>
+
         {/* Workflow Efficiency Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <DashboardInfoCard
@@ -5693,24 +6157,8 @@ export function TableauDashboard() {
           />
         </div>
 
-        {/* Tableau Dashboard Container */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-            <span>📉</span>
-            <span>Interactive Tableau Dashboard</span>
-          </h2>
-          <TableauContainer
-            title="Supply Chain Analytics Dashboard"
-            viewUrl={TABLEAU_CONFIG.viewUrl}
-            height="900px"
-            loading={dashboardLoading}
-            onLoad={() => setDashboardLoading(false)}
-            onError={(err) => console.error('Tableau load error:', err)}
-          />
-        </div>
-
-        {/* Additional Insights */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-8 text-white shadow-xl">
+        {/* Executive Insights */}
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-8 text-white shadow-xl mb-8">
           <h3 className="text-2xl font-bold mb-4 flex items-center gap-2">
             <span>💡</span>
             <span>Executive Insights</span>

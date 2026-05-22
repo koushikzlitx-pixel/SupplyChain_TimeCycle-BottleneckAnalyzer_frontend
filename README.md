@@ -85,14 +85,26 @@
 - **AnalyticsSummaryPanel**: Comprehensive analytics panel
 - **DashboardInfoCard**: Statistics cards
 - **FullscreenDashboardModal**: Fullscreen dashboard view
+- **EmptyAnalyticsState**: Reusable empty state component
+- **LoadingSkeletonCard**: Loading skeleton for cards
+- **AnalyticsRecommendationCard**: Strategic recommendation cards
+- **StagePerformanceCard**: Stage performance visualization
+- **BottleneckSummaryCard**: Bottleneck analysis summary
+- **SLABreachSummaryCard**: SLA breach analysis summary
+- **WorkflowEfficiencyPanel**: Comprehensive workflow efficiency display
 
-### Tableau Integration
+### Tableau Integration & Analytics Storytelling
 - **Embedded Dashboards**: Native Tableau dashboard integration
 - **Responsive Containers**: Adaptive Tableau visualization sizing
 - **Fullscreen Support**: Dedicated fullscreen analytics experience
 - **Loading States**: Intelligent loading and error handling
 - **Environment Config**: Flexible Tableau URL configuration
 - **Analytics Storytelling**: Rich insights around visualizations
+- **Stage Performance Highlights**: Visual stage performance cards
+- **Bottleneck Intelligence**: Critical bottleneck analysis with recommendations
+- **SLA Breach Insights**: Comprehensive SLA breach tracking
+- **Strategic Recommendations**: Priority-based action recommendations
+- **Workflow Efficiency Metrics**: Real-time workflow performance tracking
 
 ## 📋 Prerequisites
 
